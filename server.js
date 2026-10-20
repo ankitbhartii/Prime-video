@@ -19,11 +19,11 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon'
 };
 
+const apiCache = new Map();
+
 const server = http.createServer((req, res) => {
-  // Handle all /api/ proxies (/api/search, /api/home, /api/trending, etc.)
+  // Handle all /api/ proxies (/api/search, /api/home, /api/tv, /api/trending, etc.)
   if (req.url.startsWith('/api/')) {
-    const targetUrl = `https://api.framextv.tech${req.url}`;
-    
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -34,15 +34,51 @@ const server = http.createServer((req, res) => {
       return;
     }
 
-    https.get(targetUrl, (proxyRes) => {
-      res.writeHead(proxyRes.statusCode, {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache'
+    const cached = apiCache.get(req.url);
+    if (cached && (Date.now() - cached.time < 3600000)) {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(cached.body);
+      return;
+    }
+
+    const targetUrl = `https://api.framextv.tech${req.url}`;
+    const options = {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://framextv.cc/',
+        'Accept': 'application/json, text/plain, */*'
+      }
+    };
+
+    https.get(targetUrl, options, (proxyRes) => {
+      let body = '';
+      proxyRes.on('data', chunk => body += chunk);
+      proxyRes.on('end', () => {
+        if (proxyRes.statusCode >= 200 && proxyRes.statusCode < 300) {
+          try {
+            JSON.parse(body);
+            apiCache.set(req.url, { time: Date.now(), body });
+            res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(body);
+            return;
+          } catch (e) {}
+        }
+        if (cached) {
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(cached.body);
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: 'Upstream status ' + proxyRes.statusCode, episodes: [] }));
       });
-      proxyRes.pipe(res);
     }).on('error', (err) => {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: err.message, results: [] }));
+      if (cached) {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(cached.body);
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: err.message, episodes: [] }));
     });
     return;
   }
