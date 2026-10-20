@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/home",
+      "destination": "/api/home.js"
+    },
+    {
+      "source": "/api/search",
+      "destination": "/api/search.js"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "https://api.framextv.tech/api/$1"
+    }
+  ]
+}
