@@ -285,13 +285,66 @@ const PLATFORM_SHOWS = {
   ]
 };
 
+const FALLBACK_FRAMEX_RAILS = {
+  trending_movies: [
+    { id: "1198654", title: "Bad Apples", type: "movie", rating: "6.7", year: "2026", poster: "https://image.tmdb.org/t/p/w500/pcPLnxCThCIo9JFQIMFX4kAE5Yz.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/pcPLnxCThCIo9JFQIMFX4kAE5Yz.jpg", overview: "A rebellious teacher is pushed to her limits in a suburban school system." },
+    { id: "1059128", title: "By Any Means", type: "movie", rating: "6.9", year: "2026", poster: "https://image.tmdb.org/t/p/w500/8d8H05z36940GqC4R5eMh7eO490.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/8d8H05z36940GqC4R5eMh7eO490.jpg", overview: "An elite detective embarks on a dangerous manhunt across borders." },
+    { id: "933260", title: "Clayface", type: "movie", rating: "8.2", year: "2026", poster: "https://image.tmdb.org/t/p/w500/4q8bJm7Wk7h7d4V6n1A6m6q0p90.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/4q8bJm7Wk7h7d4V6n1A6m6q0p90.jpg", overview: "The tragic rise and descent of a shapeshifting Gotham villain." },
+    { id: "1084199", title: "The Weight", type: "movie", rating: "6.9", year: "2026", poster: "https://image.tmdb.org/t/p/w500/d5iS9H5gW1pL8D3jF8n1E6q0p90.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/d5iS9H5gW1pL8D3jF8n1E6q0p90.jpg", overview: "A gripping survival drama set in the harsh Alaskan wilderness." },
+    { id: "1114513", title: "Tenzing", type: "movie", rating: "8.3", year: "2026", poster: "https://image.tmdb.org/t/p/w500/7WsyChQLEftFiDOVTGkv3hFpyyt.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/7WsyChQLEftFiDOVTGkv3hFpyyt.jpg", overview: "The untold epic journey of Tenzing Norgay reaching the summit of Mount Everest." },
+    { id: "114479", title: "Hope", type: "movie", rating: "6.9", year: "2026", poster: "https://image.tmdb.org/t/p/w500/9bC1YfQfJ01sD4V4p8e4M8q0p90.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/9bC1YfQfJ01sD4V4p8e4M8q0p90.jpg", overview: "An isolated harbor town faces an existential threat from beyond." },
+    { id: "980489", title: "Spider-Man: Brand New Day", type: "movie", rating: "8.5", year: "2026", poster: "https://image.tmdb.org/t/p/w500/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/8ZTVqvKDQ8emSGUEMjsS4yUmCqP.jpg", overview: "Peter Parker navigates a world that doesn't remember him while confronting new threats." },
+    { id: "1064213", title: "Masterplan", type: "movie", rating: "7.1", year: "2026", poster: "https://image.tmdb.org/t/p/w500/eShw0EVqnGH2NxRkg4yauCJ958P.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/eShw0EVqnGH2NxRkg4yauCJ958P.jpg", overview: "A high-stakes international heist orchestrated across European banking capitals." },
+    { id: "1084242", title: "Street Fighter", type: "movie", rating: "6.3", year: "2026", poster: "https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/qJ2tW6WMUDux911r6m7haRef0WH.jpg", overview: "Martial arts champions clash in the underground world warrior tournament." },
+    { id: "1123490", title: "Resident Evil: Requiem", type: "movie", rating: "7.3", year: "2026", poster: "https://image.tmdb.org/t/p/w500/7O09Cq3z8f9F2n1A6m6q0p90aBc.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/7O09Cq3z8f9F2n1A6m6q0p90aBc.jpg", overview: "Surviving operatives investigate a new bio-organic containment facility in Eastern Europe." },
+    { id: "1154981", title: "You Can See Everything", type: "movie", rating: "7.7", year: "2026", poster: "https://image.tmdb.org/t/p/w500/u3bZgnGQ9T01sD4V4p8e4M8q0p9.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/u3bZgnGQ9T01sD4V4p8e4M8q0p9.jpg", overview: "A psychological mystery surrounding an omniscient digital surveillance program." },
+    { id: "1138290", title: "Sacrifice", type: "movie", rating: "7.5", year: "2026", poster: "https://image.tmdb.org/t/p/w500/393K3sE9hF2n1A6m6q0p90aBcDe.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/393K3sE9hF2n1A6m6q0p90aBcDe.jpg", overview: "A devoted team ventures into extreme volcanic depths on a rescue operation." }
+  ],
+  popular_movies: [
+    { id: "980489", title: "Spider-Man: Brand New Day", type: "movie", rating: "8.5", year: "2026", poster: "https://image.tmdb.org/t/p/w500/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/8ZTVqvKDQ8emSGUEMjsS4yUmCqP.jpg", overview: "Peter Parker navigates a world that doesn't remember him while confronting new threats." },
+    { id: "693134", title: "Dune: Part Two", type: "movie", rating: "8.6", year: "2024", poster: "https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/xOMo8BRK7PfcJv9JCnx7s5200bm.jpg", overview: "Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators." },
+    { id: "533535", title: "Deadpool & Wolverine", type: "movie", rating: "7.8", year: "2024", poster: "https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/yDHYTjA3R0ne84GuT43Q9Wz14x4.jpg", overview: "A listless Wade Wilson toils away in civilian life when the Time Variance Authority recruits him." },
+    { id: "872585", title: "Oppenheimer", type: "movie", rating: "8.9", year: "2023", poster: "https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/fm6KqXpk3M2HVveHwCrBSSBaO0V.jpg", overview: "The story of J. Robert Oppenheimer's role in the development of the atomic bomb." },
+    { id: "1084242", title: "Street Fighter", type: "movie", rating: "6.3", year: "2026", poster: "https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/qJ2tW6WMUDux911r6m7haRef0WH.jpg", overview: "Martial arts champions clash in the underground world warrior tournament." },
+    { id: "1198654", title: "Bad Apples", type: "movie", rating: "6.7", year: "2026", poster: "https://image.tmdb.org/t/p/w500/pcPLnxCThCIo9JFQIMFX4kAE5Yz.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/pcPLnxCThCIo9JFQIMFX4kAE5Yz.jpg", overview: "A rebellious teacher is pushed to her limits in a suburban school system." }
+  ],
+  popular_tv: [
+    { id: "1396", title: "Breaking Bad", type: "tv", rating: "9.5", year: "2008", poster: "https://image.tmdb.org/t/p/w500/ggFHVNu6YYI5L9pCfOacjizRGt.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg", overview: "A high school chemistry teacher diagnosed with terminal lung cancer turns to manufacturing methamphetamine." },
+    { id: "106379", title: "Fallout", type: "tv", rating: "8.6", year: "2024", poster: "https://image.tmdb.org/t/p/w500/ansA66s6e0q0sV4n1A6m6q0p9.jpg", backdrop: "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=1280&q=80", overview: "In a future, post-apocalyptic Los Angeles, citizens must live in underground bunkers to protect themselves." },
+    { id: "66732", title: "Stranger Things", type: "tv", rating: "8.7", year: "2016", poster: "https://image.tmdb.org/t/p/w500/49WJfeN0moxb9IPfGn8AIqMGskD.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/56v2KjUmLeVoVnBsw19vWkn9xuv.jpg", overview: "When a young boy vanishes, a small town uncovers a mystery involving secret experiments." },
+    { id: "94997", title: "House of the Dragon", type: "tv", rating: "8.4", year: "2022", poster: "https://image.tmdb.org/t/p/w500/1X4h40fcB4WWUmIBK0auT4zRBAV.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/etj5CuMuam3hD6MfP2bgji5gW2r.jpg", overview: "The Targaryen dynasty is at the absolute apex of its power, with more than 15 dragons under their yoke." }
+  ],
+  popular_anime: [
+    { id: "1429", title: "Attack on Titan", type: "tv", rating: "9.1", year: "2013", poster: "https://image.tmdb.org/t/p/w500/hTP1DtLGFamjfu8WqjnuQdP1n4i.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/yvRWg0w0aBcDe4V4p8e4M8q0p90.jpg", overview: "After his hometown is destroyed, young Eren Jaeger vows to cleanse the earth of the giant humanoid Titans." },
+    { id: "85937", title: "Demon Slayer: Kimetsu no Yaiba", type: "tv", rating: "8.9", year: "2019", poster: "https://image.tmdb.org/t/p/w500/xUfRZu2mi8jH6SzQEJGP6tjBuYj.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/nTvM4mhqZlpHKwZa09AIYGE0F5e.jpg", overview: "Tanjiro sets out to become a demon slayer to avenge his family and cure his sister." },
+    { id: "95479", title: "Jujutsu Kaisen", type: "tv", rating: "8.8", year: "2020", poster: "https://image.tmdb.org/t/p/w500/hCwW0e8a4V4p8e4M8q0p90aBcDe.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/3f5G8k4V4p8e4M8q0p90aBcDeFg.jpg", overview: "Yuji Itadori swallows a cursed talisman and enrolls at Tokyo Jujutsu High." },
+    { id: "37854", title: "One Piece", type: "tv", rating: "8.9", year: "1999", poster: "https://image.tmdb.org/t/p/w500/cMD9Ygz11zjJzAovURpO75Qg7rT.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/2rmK7mnchw9Xr3XdiTFSxTT0Yqi.jpg", overview: "Monkey D. Luffy sets sail with his crew in search of the legendary treasure known as 'One Piece'." }
+  ],
+  new_releases: [
+    { id: "1059128", title: "By Any Means", type: "movie", rating: "6.9", year: "2026", poster: "https://image.tmdb.org/t/p/w500/8d8H05z36940GqC4R5eMh7eO490.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/8d8H05z36940GqC4R5eMh7eO490.jpg", overview: "An elite detective embarks on a dangerous manhunt across borders." },
+    { id: "1198654", title: "Bad Apples", type: "movie", rating: "6.7", year: "2026", poster: "https://image.tmdb.org/t/p/w500/pcPLnxCThCIo9JFQIMFX4kAE5Yz.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/pcPLnxCThCIo9JFQIMFX4kAE5Yz.jpg", overview: "A rebellious teacher is pushed to her limits in a suburban school system." },
+    { id: "114479", title: "Hope", type: "movie", rating: "6.9", year: "2026", poster: "https://image.tmdb.org/t/p/w500/9bC1YfQfJ01sD4V4p8e4M8q0p90.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/9bC1YfQfJ01sD4V4p8e4M8q0p90.jpg", overview: "An isolated harbor town faces an existential threat from beyond." },
+    { id: "1064213", title: "Masterplan", type: "movie", rating: "7.1", year: "2026", poster: "https://image.tmdb.org/t/p/w500/eShw0EVqnGH2NxRkg4yauCJ958P.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/eShw0EVqnGH2NxRkg4yauCJ958P.jpg", overview: "A high-stakes international heist orchestrated across European banking capitals." }
+  ],
+  action_movies: [
+    { id: "980489", title: "Spider-Man: Brand New Day", type: "movie", rating: "8.5", year: "2026", poster: "https://image.tmdb.org/t/p/w500/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/8ZTVqvKDQ8emSGUEMjsS4yUmCqP.jpg", overview: "Peter Parker navigates a world that doesn't remember him while confronting new threats." },
+    { id: "693134", title: "Dune: Part Two", type: "movie", rating: "8.6", year: "2024", poster: "https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/xOMo8BRK7PfcJv9JCnx7s5200bm.jpg", overview: "Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators." },
+    { id: "1084242", title: "Street Fighter", type: "movie", rating: "6.3", year: "2026", poster: "https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/qJ2tW6WMUDux911r6m7haRef0WH.jpg", overview: "Martial arts champions clash in the underground world warrior tournament." }
+  ],
+  comedy_movies: [
+    { id: "533535", title: "Deadpool & Wolverine", type: "movie", rating: "7.8", year: "2024", poster: "https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/yDHYTjA3R0ne84GuT43Q9Wz14x4.jpg", overview: "A listless Wade Wilson toils away in civilian life when the Time Variance Authority recruits him." },
+    { id: "840430", title: "The Holdovers", type: "movie", rating: "7.9", year: "2023", poster: "https://image.tmdb.org/t/p/w500/5a5L5s5e5q0p90aBcDeFgHiJkLm.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/5a5L5s5e5q0p90aBcDeFgHiJkLm.jpg", overview: "A cranky history teacher at a remote prep school is forced to remain on campus during Christmas break." }
+  ]
+};
+
 // ==========================================================================
 // INITIALIZATION
 // ==========================================================================
 
 document.addEventListener("DOMContentLoaded", () => {
-  renderBillboard(currentHeroItem);
-  
+  // Render initial fallback content immediately so rails are never empty
+  renderInitialCatalog();
+
   // Render initial platform curated content
   renderRail("scrollerNetflix", PLATFORM_SHOWS.netflix, false, "badge-netflix", "NETFLIX");
   renderRail("scrollerHotstar", PLATFORM_SHOWS.hotstar, false, "badge-hotstar", "HOTSTAR");
@@ -305,9 +358,56 @@ document.addEventListener("DOMContentLoaded", () => {
   setupPlayerHudInteraction();
   initSliderArrows();
 
-  // Fetch all live categories from FrameXTV backend
+  // Fetch all live categories from backend/proxy
   loadLiveFrameXCatalog();
 });
+
+function renderInitialCatalog() {
+  const trending = FALLBACK_FRAMEX_RAILS.trending_movies.map(d => formatSearchResult(d, "badge-prime", "MOVIE"));
+  CATEGORY_ITEMS.trending = trending;
+  renderRail("scrollerTrending", trending);
+  const countTrending = document.getElementById("countTrending");
+  if (countTrending) countTrending.innerText = trending.length;
+
+  const popular = FALLBACK_FRAMEX_RAILS.popular_movies.map(d => formatSearchResult(d, "badge-prime", "MOVIE"));
+  CATEGORY_ITEMS.popular_movies = popular;
+  renderRail("scrollerPopularMovies", popular);
+  const countPopular = document.getElementById("countPopularMovies");
+  if (countPopular) countPopular.innerText = popular.length;
+
+  const tv = FALLBACK_FRAMEX_RAILS.popular_tv.map(d => formatSearchResult(d, "badge-netflix", "TV"));
+  CATEGORY_ITEMS.popular_tv = tv;
+  renderRail("scrollerPopularTV", tv);
+  const countTV = document.getElementById("countPopularTV");
+  if (countTV) countTV.innerText = tv.length;
+
+  const anime = FALLBACK_FRAMEX_RAILS.popular_anime.map(d => formatSearchResult(d, "badge-anime", "ANIME"));
+  CATEGORY_ITEMS.anime = anime;
+  renderRail("scrollerAnime", anime, false, "badge-anime", "ANIME");
+  const countAnime = document.getElementById("countAnime");
+  if (countAnime) countAnime.innerText = anime.length;
+
+  const newRel = FALLBACK_FRAMEX_RAILS.new_releases.map(d => formatSearchResult(d, "badge-prime", "NEW"));
+  CATEGORY_ITEMS.new_releases = newRel;
+  renderRail("scrollerNewReleases", newRel);
+  const countNew = document.getElementById("countNewReleases");
+  if (countNew) countNew.innerText = newRel.length;
+
+  const action = FALLBACK_FRAMEX_RAILS.action_movies.map(d => formatSearchResult(d, "badge-prime", "ACTION"));
+  CATEGORY_ITEMS.action = action;
+  renderRail("scrollerAction", action);
+  const countAction = document.getElementById("countAction");
+  if (countAction) countAction.innerText = action.length;
+
+  const comedy = FALLBACK_FRAMEX_RAILS.comedy_movies.map(d => formatSearchResult(d, "badge-prime", "COMEDY"));
+  CATEGORY_ITEMS.comedy = comedy;
+  renderRail("scrollerComedy", comedy);
+  const countComedy = document.getElementById("countComedy");
+  if (countComedy) countComedy.innerText = comedy.length;
+
+  // Set billboard hero
+  renderBillboard(popular[0] || trending[0] || currentHeroItem);
+}
 
 // ==========================================================================
 // RENDER BILLBOARD HERO
@@ -384,18 +484,57 @@ function extractRailResults(rail) {
   return [];
 }
 
+async function fetchApiJson(endpoint) {
+  // 1. Try local/relative endpoint (localhost server.js or Vercel serverless function)
+  try {
+    const res = await fetch(endpoint);
+    const ct = res.headers.get("content-type") || "";
+    if (res.ok && ct.includes("json")) {
+      const data = await res.json();
+      if (data && (data.rails || data.results || data.items || Array.isArray(data))) {
+        return data;
+      }
+    }
+  } catch (e) {
+    console.warn("[API] Relative fetch error:", e);
+  }
+
+  // 2. Try direct FrameXTV backend
+  try {
+    const directUrl = endpoint.startsWith("/api/") ? `https://api.framextv.tech${endpoint}` : endpoint;
+    const res = await fetch(directUrl);
+    const ct = res.headers.get("content-type") || "";
+    if (res.ok && ct.includes("json")) {
+      return await res.json();
+    }
+  } catch (e) {
+    console.warn("[API] Direct fetch error:", e);
+  }
+
+  // 3. Try public HTTPS CORS proxy
+  try {
+    const directUrl = endpoint.startsWith("/api/") ? `https://api.framextv.tech${endpoint}` : endpoint;
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(directUrl)}`;
+    const res = await fetch(proxyUrl);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (e) {
+    console.warn("[API] CORS proxy error:", e);
+  }
+
+  return null;
+}
+
 async function loadLiveFrameXCatalog() {
   try {
-    let res = null;
-    try {
-      res = await fetch('/api/home');
-    } catch {
-      res = await fetch('https://api.framextv.tech/api/home');
-    }
+    const data = await fetchApiJson('/api/home');
 
-    if (!res || !res.ok) return;
-    const data = await res.json();
-    if (!data || !data.rails) return;
+    if (!data || !data.rails) {
+      console.warn("[FrameX Catalog] Using cached catalog (live API returned empty)");
+      fetchLivePlatformRows();
+      return;
+    }
 
     console.log("[FrameX Catalog] Live Rails Loaded:", Object.keys(data.rails));
 
@@ -478,7 +617,8 @@ async function loadLiveFrameXCatalog() {
     fetchLivePlatformRows();
 
   } catch (err) {
-    console.warn("[FrameX Catalog] Using fallback, live API error:", err);
+    console.warn("[FrameX Catalog] Live API error:", err);
+    fetchLivePlatformRows();
   }
 }
 
@@ -489,9 +629,9 @@ async function fetchLivePlatformRows() {
     const maxQueries = ['house of the dragon', 'the last of us', 'game of thrones', 'succession', 'euphoria'];
 
     Promise.all(netflixQueries.map(q => 
-      fetch(`/api/search?q=${encodeURIComponent(q)}`)
-        .then(r => r.json())
+      fetchApiJson(`/api/search?q=${encodeURIComponent(q)}`)
         .then(d => {
+          if (!d) return null;
           const res = extractRailResults(d);
           return res.length > 0 ? formatSearchResult(res[0], "badge-netflix", "NETFLIX") : null;
         })
@@ -505,9 +645,9 @@ async function fetchLivePlatformRows() {
     });
 
     Promise.all(hotstarQueries.map(q => 
-      fetch(`/api/search?q=${encodeURIComponent(q)}`)
-        .then(r => r.json())
+      fetchApiJson(`/api/search?q=${encodeURIComponent(q)}`)
         .then(d => {
+          if (!d) return null;
           const res = extractRailResults(d);
           return res.length > 0 ? formatSearchResult(res[0], "badge-hotstar", "HOTSTAR") : null;
         })
@@ -521,9 +661,9 @@ async function fetchLivePlatformRows() {
     });
 
     Promise.all(maxQueries.map(q => 
-      fetch(`/api/search?q=${encodeURIComponent(q)}`)
-        .then(r => r.json())
+      fetchApiJson(`/api/search?q=${encodeURIComponent(q)}`)
         .then(d => {
+          if (!d) return null;
           const res = extractRailResults(d);
           return res.length > 0 ? formatSearchResult(res[0], "badge-max", "HBO MAX") : null;
         })
@@ -1274,15 +1414,8 @@ async function performLiveSearch(q) {
   );
 
   try {
-    let res = null;
-    try {
-      res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-    } catch {
-      res = await fetch(`https://api.framextv.tech/api/search?q=${encodeURIComponent(q)}`);
-    }
-
-    if (!res || !res.ok) throw new Error("Search API request failed");
-    const data = await res.json();
+    const data = await fetchApiJson(`/api/search?q=${encodeURIComponent(q)}`);
+    if (!data) throw new Error("Search API request returned no results");
     
     const rawList = Array.isArray(data) ? data : (data.results || data.items || []);
     let items = rawList.map(d => formatSearchResult(d));
