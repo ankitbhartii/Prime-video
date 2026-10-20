@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prime Video</title>
+  <link rel="stylesheet" href="style.css?v=2.2">
+</head>
+<body>
+
+  <!-- ==================== PRIME VIDEO TV HEADER ==================== -->
+  <header class="prime-header" id="primeHeader">
+    <div class="header-left">
+      <div class="prime-logo" onclick="switchCategory('all')">
+        <div class="prime-logo-text">
+          prime <span>video</span>
+          <svg class="prime-smile" viewBox="0 0 52 8">
+            <path d="M 2 2 Q 26 9 50 2" />
+          </svg>
+        </div>
+      </div>
+
+      <ul class="nav-links">
+        <li class="nav-item active" data-cat="all" onclick="switchCategory('all')">All Platforms</li>
+        <li class="nav-item" data-cat="movie" onclick="switchCategory('movie')">Movies</li>
+        <li class="nav-item" data-cat="tv" onclick="switchCategory('tv')">TV Series</li>
+        <li class="nav-item" data-cat="netflix" onclick="switchCategory('netflix')">Netflix</li>
+        <li class="nav-item" data-cat="hotstar" onclick="switchCategory('hotstar')">Disney+ Hotstar</li>
+        <li class="nav-item" data-cat="prime" onclick="switchCategory('prime')">Prime Video</li>
+        <li class="nav-item" data-cat="max" onclick="switchCategory('max')">HBO Max</li>
+        <li class="nav-item" data-cat="anime" onclick="switchCategory('anime')">Anime Hub</li>
+      </ul>
+    </div>
+
+    <div class="header-right">
+      <div class="search-box" id="searchBoxContainer">
+        <svg class="search-icon" viewBox="0 0 24 24">
+          <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+        </svg>
+        <input type="text" id="searchInput" class="search-input" placeholder="Search movies, TV shows, actors..." autocomplete="off">
+        
+        <!-- Floating Dropdown Recommendations -->
+        <div class="search-dropdown" id="searchDropdown" style="display: none;"></div>
+      </div>
+
+      <button class="header-btn" id="fsToggleBtn" onclick="toggleFullScreen()">
+        <span id="fsIcon">⛶</span> Fullscreen TV
+      </button>
+
+      <button class="header-btn" onclick="openViewAllCategory('all')" title="Browse All Shows & Movies in One Grid">
+        ✨ All Shows & Movies
+      </button>
+
+      <div class="profile-avatar" title="Ankit">A</div>
+    </div>
+  </header>
+
+  <!-- ==================== HERO BILLBOARD ==================== -->
+  <section class="hero-billboard" id="heroBillboard">
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span>★</span> AMAZON ORIGINAL
+      </div>
+      <h1 class="hero-title" id="heroTitle">FALLOUT</h1>
+      <div class="hero-meta">
+        <span class="meta-rating"><span>★</span> 8.5 IMDb</span>
+        <span class="badge-pill">4K UHD</span>
+        <span class="badge-pill">HDR10+</span>
+        <span class="badge-pill">18+</span>
+        <span>2024</span>
+        <span>Season 1</span>
+        <span>Action • Sci-Fi</span>
+      </div>
+      <p class="hero-description" id="heroDesc">
+        In a future, post-apocalyptic Los Angeles brought about by nuclear decimation, citizens must live in underground bunkers to protect themselves from radiation, mutants and bandits.
+      </p>
+      <div class="hero-actions">
+        <button class="btn-prime-play" id="heroPlayBtn" onclick="playHeroMovie()">
+          <span>▶</span> Watch Now
+        </button>
+        <button class="btn-secondary" onclick="openHeroDetails()">
+          <span>ℹ</span> More Details
+        </button>
+        <button class="btn-circle" title="Add to Watchlist" onclick="toggleWatchlist(currentHeroItem)">
+          <span>+</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== CONTENT RAILS / CAROUSELS ==================== -->
+  <main class="content-container" id="contentContainer">
+
+    <!-- Streaming Channels Selector -->
+    <div class="channels-rail" id="channelsRail">
+      <div class="channel-pill active" data-channel="all" onclick="switchCategory('all')">
+        <span class="icon">✨</span> All Platforms
+      </div>
+      <div class="channel-pill" data-channel="netflix" onclick="switchCategory('netflix')">
+        <span class="icon" style="color: #e50914; font-weight: 900;">N</span> Netflix
+      </div>
+      <div class="channel-pill" data-channel="hotstar" onclick="switchCategory('hotstar')">
+        <span class="icon" style="color: #14e297;">★</span> Disney+ Hotstar
+      </div>
+      <div class="channel-pill" data-channel="prime" onclick="switchCategory('prime')">
+        <span class="icon" style="color: var(--prime-cyan);">✔</span> Prime Video
+      </div>
+      <div class="channel-pill" data-channel="max" onclick="switchCategory('max')">
+        <span class="icon" style="color: #a78bfa; font-weight: 800;">M</span> HBO Max
+      </div>
+      <div class="channel-pill" data-channel="anime" onclick="switchCategory('anime')">
+        <span class="icon" style="color: #f47521;">⛩</span> Anime Hub
+      </div>
+    </div>
+
+    <!-- Real-time Live Search Results -->
+    <section class="content-row" id="rowSearch" style="display: none;">
+      <div class="row-header">
+        <h2 class="row-title">
+          Search Results <span id="searchQueryLabel" style="color: var(--prime-cyan); font-weight: 500; font-size: 16px; margin-left: 8px;"></span>
+        </h2>
+        <span class="row-see-all" onclick="clearSearch()" style="cursor: pointer; color: var(--text-secondary); font-size: 13px;">✕ Clear Search</span>
+      </div>
+      <div class="search-grid" id="searchGrid">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- Trending Movies & Shows (FrameXTV Top Hits) -->
+    <section class="content-row" id="rowTrending">
+      <div class="row-header">
+        <div class="row-title-group">
+          <h2 class="row-title">
+            Trending Movies & Shows <span class="category-count" id="countTrending">18</span>
+          </h2>
+          <p class="row-subtitle">Most-watched films and series streaming right now across all platforms</p>
+        </div>
+        <span class="row-see-all" onclick="openViewAllCategory('trending')">View all ›</span>
+      </div>
+      <div class="scroller-wrapper">
+        <button class="slider-btn slider-prev hidden" onclick="slideRow('scrollerTrending', -1)" aria-label="Slide Left" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="cards-scroller" id="scrollerTrending">
+          <!-- Rendered dynamically -->
+        </div>
+        <button class="slider-btn slider-next" onclick="slideRow('scrollerTrending', 1)" aria-label="Slide Right" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- Popular Movies (FrameXTV) -->
+    <section class="content-row" id="rowPopularMovies">
+      <div class="row-header">
+        <div class="row-title-group">
+          <h2 class="row-title">
+            Popular Movies <span class="category-count" id="countPopularMovies">19</span>
+          </h2>
+          <p class="row-subtitle">Global crowd favorites and blockbuster cinema</p>
+        </div>
+        <span class="row-see-all" onclick="openViewAllCategory('popular_movies')">View all ›</span>
+      </div>
+      <div class="scroller-wrapper">
+        <button class="slider-btn slider-prev hidden" onclick="slideRow('scrollerPopularMovies', -1)" aria-label="Slide Left" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="cards-scroller" id="scrollerPopularMovies">
+          <!-- Rendered dynamically -->
+        </div>
+        <button class="slider-btn slider-next" onclick="slideRow('scrollerPopularMovies', 1)" aria-label="Slide Right" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- Popular TV Series (FrameXTV) -->
+    <section class="content-row" id="rowPopularTV">
+      <div class="row-header">
+        <div class="row-title-group">
+          <h2 class="row-title">
+            Popular TV Series <span class="category-count" id="countPopularTV">14</span>
+          </h2>
+          <p class="row-subtitle">Binge-worthy drama, mysteries, and episodic television</p>
+        </div>
+        <span class="row-see-all" onclick="openViewAllCategory('popular_tv')">View all ›</span>
+      </div>
+      <div class="scroller-wrapper">
+        <button class="slider-btn slider-prev hidden" onclick="slideRow('scrollerPopularTV', -1)" aria-label="Slide Left" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="cards-scroller" id="scrollerPopularTV">
+          <!-- Rendered dynamically -->
+        </div>
+        <button class="slider-btn slider-next" onclick="slideRow('scrollerPopularTV', 1)" aria-label="Slide Right" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- Netflix Originals & Hits -->
+    <section class="content-row" id="rowNetflix">
+      <div class="row-header">
+        <div class="row-title-group">
+          <h2 class="row-title">
+            Trending on Netflix <span class="prime-tag" style="color: #e50914;">Netflix</span>
+          </h2>
+          <p class="row-subtitle">Top Netflix Originals, global sensations, and international dramas</p>
+        </div>
+        <span class="row-see-all" onclick="openViewAllCategory('netflix')">View all ›</span>
+      </div>
+      <div class="scroller-wrapper">
+        <button class="slider-btn slider-prev hidden" onclick="slideRow('scrollerNetflix', -1)" aria-label="Slide Left" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="cards-scroller" id="scrollerNetflix">
+          <!-- Rendered dynamically -->
+        </div>
+        <button class="slider-btn slider-next" onclick="slideRow('scrollerNetflix', 1)" aria-label="Slide Right" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- Disney+ & Hotstar Specials -->
+    <section class="content-row" id="rowHotstar">
+      <div class="row-header">
+        <div class="row-title-group">
+          <h2 class="row-title">
+            Disney+ & Hotstar Specials <span class="prime-tag" style="color: #14e297;">Hotstar</span>
+          </h2>
+          <p class="row-subtitle">Marvel Studios, Star Wars saga, and Hotstar Exclusives</p>
+        </div>
+        <span class="row-see-all" onclick="openViewAllCategory('hotstar')">View all ›</span>
+      </div>
+      <div class="scroller-wrapper">
+        <button class="slider-btn slider-prev hidden" onclick="slideRow('scrollerHotstar', -1)" aria-label="Slide Left" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="cards-scroller" id="scrollerHotstar">
+          <!-- Rendered dynamically -->
+        </div>
+        <button class="slider-btn slider-next" onclick="slideRow('scrollerHotstar', 1)" aria-label="Slide Right" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- Amazon Prime Originals -->
+    <section class="content-row" id="rowOriginals">
+      <div class="row-header">
+        <div class="row-title-group">
+          <h2 class="row-title">
+            Amazon Prime Originals <span class="prime-tag">Prime</span>
+          </h2>
+          <p class="row-subtitle">Award-winning Prime Video exclusive series, blockbusters, and documentaries</p>
+        </div>
+        <span class="row-see-all" onclick="openViewAllCategory('originals')">View all ›</span>
+      </div>
+      <div class="scroller-wrapper">
+        <button class="slider-btn slider-prev hidden" onclick="slideRow('scrollerOriginals', -1)" aria-label="Slide Left" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="cards-scroller" id="scrollerOriginals">
+          <!-- Rendered dynamically -->
+        </div>
+        <button class="slider-btn slider-next" onclick="slideRow('scrollerOriginals', 1)" aria-label="Slide Right" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- HBO Max Blockbusters & Hits -->
+    <section class="content-row" id="rowMax">
+      <div class="row-header">
+        <div class="row-title-group">
+          <h2 class="row-title">
+            HBO Max Blockbusters <span class="prime-tag" style="color: #a78bfa;">HBO Max</span>
+          </h2>
+          <p class="row-subtitle">Critically acclaimed HBO dramas, Warner Bros releases, and cinematic hits</p>
+        </div>
+        <span class="row-see-all" onclick="openViewAllCategory('max')">View all ›</span>
+      </div>
+      <div class="scroller-wrapper">
+        <button class="slider-btn slider-prev hidden" onclick="slideRow('scrollerMax', -1)" aria-label="Slide Left" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="cards-scroller" id="scrollerMax">
+          <!-- Rendered dynamically -->
+        </div>
+        <button class="slider-btn slider-next" onclick="slideRow('scrollerMax', 1)" aria-label="Slide Right" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- Top Trending Anime (FrameXTV) -->
+    <section class="content-row" id="rowAnime">
+      <div class="row-header">
+        <div class="row-title-group">
+          <h2 class="row-title">
+            Popular Anime <span class="category-count" id="countAnime">20</span> <span class="prime-tag" style="color: #f47521;">Anime</span>
+          </h2>
+          <p class="row-subtitle">Top Japanese animation, shonen epics, and seasonal simulcasts</p>
+        </div>
+        <span class="row-see-all" onclick="openViewAllCategory('anime')">View all ›</span>
+      </div>
+      <div class="scroller-wrapper">
+        <button class="slider-btn slider-prev hidden" onclick="slideRow('scrollerAnime', -1)" aria-label="Slide Left" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="cards-scroller" id="scrollerAnime">
+          <!-- Rendered dynamically -->
+        </div>
+        <button class="slider-btn slider-next" onclick="slideRow('scrollerAnime', 1)" aria-label="Slide Right" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- New Releases (FrameXTV) -->
+    <section class="content-row" id="rowNewReleases">
+      <div class="row-header">
+        <div class="row-title-group">
+          <h2 class="row-title">
+            New Releases <span class="category-count" id="countNewReleases">20</span>
+          </h2>
+          <p class="row-subtitle">Fresh digital releases, premieres, and newly arrived movies</p>
+        </div>
+        <span class="row-see-all" onclick="openViewAllCategory('new_releases')">View all ›</span>
+      </div>
+      <div class="scroller-wrapper">
+        <button class="slider-btn slider-prev hidden" onclick="slideRow('scrollerNewReleases', -1)" aria-label="Slide Left" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="cards-scroller" id="scrollerNewReleases">
+          <!-- Rendered dynamically -->
+        </div>
+        <button class="slider-btn slider-next" onclick="slideRow('scrollerNewReleases', 1)" aria-label="Slide Right" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- Action & Blockbusters (FrameXTV) -->
+    <section class="content-row" id="rowAction">
+      <div class="row-header">
+        <div class="row-title-group">
+          <h2 class="row-title">
+            Action & Sci-Fi Blockbusters <span class="category-count" id="countAction">17</span>
+          </h2>
+          <p class="row-subtitle">High-octane action, superhero spectacles, and futuristic odysseys</p>
+        </div>
+        <span class="row-see-all" onclick="openViewAllCategory('action')">View all ›</span>
+      </div>
+      <div class="scroller-wrapper">
+        <button class="slider-btn slider-prev hidden" onclick="slideRow('scrollerAction', -1)" aria-label="Slide Left" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="cards-scroller" id="scrollerAction">
+          <!-- Rendered dynamically -->
+        </div>
+        <button class="slider-btn slider-next" onclick="slideRow('scrollerAction', 1)" aria-label="Slide Right" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- Comedy Movies (FrameXTV) -->
+    <section class="content-row" id="rowComedy">
+      <div class="row-header">
+        <div class="row-title-group">
+          <h2 class="row-title">
+            Comedy & Entertainment <span class="category-count" id="countComedy">20</span>
+          </h2>
+          <p class="row-subtitle">Laugh-out-loud comedies, family films, and comedy specials</p>
+        </div>
+        <span class="row-see-all" onclick="openViewAllCategory('comedy')">View all ›</span>
+      </div>
+      <div class="scroller-wrapper">
+        <button class="slider-btn slider-prev hidden" onclick="slideRow('scrollerComedy', -1)" aria-label="Slide Left" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="cards-scroller" id="scrollerComedy">
+          <!-- Rendered dynamically -->
+        </div>
+        <button class="slider-btn slider-next" onclick="slideRow('scrollerComedy', 1)" aria-label="Slide Right" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- Live TV & Channels -->
+    <section class="content-row" id="rowLive">
+      <div class="row-header">
+        <div class="row-title-group">
+          <h2 class="row-title">Live Channels & Sports</h2>
+          <p class="row-subtitle">24/7 sports feeds, live cricket, football, and news networks</p>
+        </div>
+        <span class="row-see-all" onclick="openViewAllCategory('live')">View all ›</span>
+      </div>
+      <div class="scroller-wrapper">
+        <button class="slider-btn slider-prev hidden" onclick="slideRow('scrollerLive', -1)" aria-label="Slide Left" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="cards-scroller" id="scrollerLive">
+          <!-- Rendered dynamically -->
+        </div>
+        <button class="slider-btn slider-next" onclick="slideRow('scrollerLive', 1)" aria-label="Slide Right" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== FULLPAGE CATEGORY / ALL SHOWS LISTING PAGE ==================== -->
+  <section class="viewall-page" id="viewAllPage" style="display: none;">
+    <div class="viewall-top-bar">
+      <button class="viewall-back-btn" onclick="closeViewAllPage()">
+        <span style="font-size: 18px; line-height: 1;">‹</span> Back to Home
+      </button>
+      <div class="viewall-badge-tag" id="viewAllTag">CATEGORY EXPLORER</div>
+    </div>
+
+    <div class="viewall-header">
+      <div class="viewall-title-wrap">
+        <h1 class="viewall-title" id="viewAllTitle">Popular Movies</h1>
+        <span class="category-count" id="viewAllCount">19</span>
+      </div>
+      <p class="viewall-subtitle" id="viewAllSubtitle">Browse all available movies, series, and streaming titles</p>
+    </div>
+
+    <div class="viewall-toolbar">
+      <div class="viewall-tabs">
+        <button class="viewall-filter-btn active" data-filter="all" onclick="filterViewAllType('all')">All Titles</button>
+        <button class="viewall-filter-btn" data-filter="movie" onclick="filterViewAllType('movie')">Movies</button>
+        <button class="viewall-filter-btn" data-filter="tv" onclick="filterViewAllType('tv')">TV Series</button>
+      </div>
+
+      <div class="viewall-sort-wrap">
+        <span style="font-size: 13px; color: var(--text-muted);">Sort By:</span>
+        <select class="viewall-select" id="viewAllSortSelect" onchange="sortViewAllGrid(this.value)">
+          <option value="featured">Featured Order</option>
+          <option value="rating">Top Rated (★ IMDb)</option>
+          <option value="year">Newest Year</option>
+          <option value="title">Alphabetical (A - Z)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="viewall-grid" id="viewAllGrid">
+      <!-- Dynamically filled with vertical poster cards -->
+    </div>
+  </section>
+
+  <!-- ==================== PRIME DETAILS & EPISODES MODAL ==================== -->
+  <div class="modal-backdrop" id="detailsModal">
+    <div class="modal-dialog">
+      <button class="modal-close-btn" onclick="closeDetailsModal()">✕</button>
+      <div class="modal-banner" id="modalBanner">
+        <div class="modal-banner-overlay"></div>
+      </div>
+      <div class="modal-body">
+        <h2 class="modal-title" id="modalTitle">Title</h2>
+        <div class="hero-meta" id="modalMeta">
+          <!-- Meta tags -->
+        </div>
+        <div class="hero-actions">
+          <button class="btn-prime-play" id="modalPlayBtn">
+            <span>▶</span> Watch Now
+          </button>
+          <button class="btn-secondary" id="modalAltServerBtn" onclick="switchServer(1); openPlayer(activeModalItem);">
+            <span>⚡</span> Server 2 (4K)
+          </button>
+          <button class="btn-circle" id="modalWatchlistBtn" onclick="toggleWatchlist(activeModalItem)">
+            <span>+</span>
+          </button>
+        </div>
+
+        <div class="modal-tabs">
+          <button class="modal-tab-btn active" data-tab="overview" onclick="switchModalTab('overview')">Overview</button>
+          <button class="modal-tab-btn" data-tab="episodes" onclick="switchModalTab('episodes')">Episodes</button>
+          <button class="modal-tab-btn" data-tab="xray" onclick="switchModalTab('xray')">X-Ray (Cast & Trivia)</button>
+        </div>
+
+        <!-- Overview Tab -->
+        <div class="modal-tab-content active" id="tabOverview">
+          <p id="modalDescription" style="font-size: 15px; line-height: 1.7; margin-bottom: 16px;"></p>
+          <div style="color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px;">
+            <div><strong style="color: #fff;">Starring:</strong> <span id="modalCastList"></span></div>
+            <div><strong style="color: #fff;">Genres:</strong> <span id="modalGenres"></span></div>
+            <div><strong style="color: #fff;">Audio Languages:</strong> English [Original], Hindi, Español, Deutsch, Français</div>
+            <div><strong style="color: #fff;">Subtitles:</strong> English [CC], Hindi, Español, Français</div>
+          </div>
+        </div>
+
+        <!-- Episodes Tab -->
+        <div class="modal-tab-content" id="tabEpisodes">
+          <div id="episodesList" style="display: flex; flex-direction: column; gap: 14px;">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- X-Ray Tab -->
+        <div class="modal-tab-content" id="tabXray">
+          <h3 style="color: #fff; margin-bottom: 6px;">Cast & Characters</h3>
+          <div class="xray-cast-grid" id="xrayCastGrid">
+            <!-- Cast cards -->
+          </div>
+          <div style="margin-top: 24px; padding: 16px; background: rgba(0, 168, 225, 0.08); border-left: 3px solid var(--prime-cyan); border-radius: 4px;">
+            <strong style="color: var(--prime-cyan);">Trivia & Scene Insights:</strong>
+            <p style="margin-top: 4px; color: #cbd5e1;" id="modalTrivia">Filmed on IMAX certified digital cameras with Dolby Atmos surround audio master.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PRIME VIDEO THEATRE PLAYER ==================== -->
+  <div class="player-view" id="playerView">
+    <div class="player-stage">
+      <iframe
+        id="theatreIframe"
+        class="player-iframe"
+        allowfullscreen="true"
+        webkitallowfullscreen="true"
+        mozallowfullscreen="true"
+        allow="autoplay *; fullscreen *; encrypted-media *; picture-in-picture *; screen-wake-lock *"
+      ></iframe>
+
+      <!-- Prime Video Player Top HUD -->
+      <div class="player-hud" id="playerHud">
+        <div class="player-hud-top">
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <button class="ctrl-btn" onclick="closePlayer()" title="Back to Prime Browse (Esc)">
+              <span style="font-size: 24px; font-weight: bold;">←</span>
+            </button>
+            <div class="player-title-info">
+              <span class="player-movie-name" id="playerMovieName">Fallout</span>
+              <span class="player-movie-sub" id="playerMovieSub">Season 1 • Episode 1 - The End</span>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <div class="server-picker" style="display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.7); border: 1px solid var(--border-subtle); border-radius: 20px; padding: 4px 12px;">
+              <span style="font-size: 11px; color: var(--prime-cyan); font-weight: 700;">STREAM:</span>
+              <select id="serverSelect" onchange="switchServer(this.selectedIndex)" style="background: transparent; border: none; color: #fff; font-size: 13px; font-weight: 600; outline: none; cursor: pointer;">
+                <option value="0" style="background: #0d1424; color: #fff;">⚡ Server 1: FrameX Native</option>
+                <option value="1" style="background: #0d1424; color: #fff;">🚀 Server 2: Videasy 4K Ultra</option>
+                <option value="2" style="background: #0d1424; color: #fff;">🌐 Server 3: VidLink Pro</option>
+              </select>
+            </div>
+
+            <button class="header-btn" onclick="togglePlayerFullscreen()" title="Toggle Fullscreen">
+              ⛶ True Fullscreen
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=2.2"></script>
+</body>
+</html>

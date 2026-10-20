@@ -1,0 +1,13 @@
+{
+  "name": "framextv-tv-simulator",
+  "version": "1.0.0",
+  "description": "Local Fire TV / Android TV WebView Simulator for frameXTV",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "keywords": ["firetv", "android-tv", "webview", "framextv"],
+  "author": "",
+  "license": "MIT"
+}

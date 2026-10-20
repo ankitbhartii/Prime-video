@@ -15,7 +15,7 @@ import android.widget.FrameLayout;
 
 public class MainActivity extends Activity {
 
-    private static final String START_URL = "https://framextv.xyz/";
+    private static final String START_URL = "file:///android_asset/index.html";
 
     private FrameLayout root;
     private WebView web;
@@ -41,7 +41,11 @@ public class MainActivity extends Activity {
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
-        s.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
+        s.setAllowFileAccess(true);
+        s.setAllowContentAccess(true);
+        s.setAllowFileAccessFromFileURLs(true);
+        s.setAllowUniversalAccessFromFileURLs(true);
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
 
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
