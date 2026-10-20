@@ -5,6 +5,7 @@
 
 [![GitHub Stars](https://img.shields.io/github/stars/ankitbhartii/Prime-video?style=for-the-badge&color=00a8e1&logo=github)](https://github.com/ankitbhartii/Prime-video)
 [![GitHub Forks](https://img.shields.io/github/forks/ankitbhartii/Prime-video?style=for-the-badge&color=00a8e1&logo=github)](https://github.com/ankitbhartii/Prime-video)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://prime-video-alpha.vercel.app/)
 [![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20Android%20TV%20%7C%20FireStick-ff9900?style=for-the-badge&logo=android)](https://github.com/ankitbhartii/Prime-video)
 [![Build Status](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions%20APK%20Build-22c55e?style=for-the-badge&logo=githubactions)](.github/workflows/build.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=for-the-badge)](LICENSE)
@@ -13,6 +14,10 @@
 
 <p align="center">
   <b>Prime Video UI/UX</b> reimagined as a <b>universal content aggregator</b>. Seamlessly explore, search, and stream trending movies, binge-worthy TV series, anime, and live channels aggregated across <b>Netflix</b>, <b>Disney+ Hotstar</b>, <b>Amazon Prime</b>, <b>HBO Max</b>, and <b>Box Office premieres</b>.
+</p>
+
+<p align="center">
+  🌐 <b>Live Web Deployment:</b> <a href="https://prime-video-alpha.vercel.app/"><b>Prime Video</b></a> (<code>https://prime-video-alpha.vercel.app/</code>)
 </p>
 
 <br/>
@@ -134,9 +139,15 @@ graph LR
 
 ---
 
-## 🚀 Quick Start (Web & Local Server)
+## 🚀 Live Demo & Quick Start
 
-### Prerequisites
+### 🌐 Live Web Deployment
+Experience the live application deployed on Vercel:
+👉 **[Prime Video](https://prime-video-alpha.vercel.app/)**
+
+---
+
+### Prerequisites (For Local Development)
 - [Node.js](https://nodejs.org/) (v16 or higher recommended)
 - `npm` (bundled with Node)
 
