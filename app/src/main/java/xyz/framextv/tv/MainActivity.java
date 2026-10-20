@@ -46,12 +46,24 @@ public class MainActivity extends Activity {
         s.setAllowFileAccessFromFileURLs(true);
         s.setAllowUniversalAccessFromFileURLs(true);
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        s.setSupportMultipleWindows(false);
+        s.setJavaScriptCanOpenWindowsAutomatically(false);
 
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
 
-        // Keep navigation inside the app.
-        web.setWebViewClient(new WebViewClient());
+        // Keep navigation inside the app and block external ad redirects.
+        web.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                if (url == null) return true;
+                if (url.startsWith("file://") || url.contains("framextv") || url.contains("videasy") || url.contains("vidlink") || url.contains("tmdb.org") || url.contains("localhost") || url.contains("vercel.app")) {
+                    return false;
+                }
+                // Suppress ad popups and redirects
+                return true;
+            }
+        });
 
         // Lets the site's own video player go fullscreen.
         web.setWebChromeClient(new WebChromeClient() {
