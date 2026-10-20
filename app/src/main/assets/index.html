@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Prime Video</title>
-  <link rel="stylesheet" href="style.css?v=2.4">
+  <link rel="stylesheet" href="style.css?v=2.6">
 </head>
 <body>
 
@@ -498,7 +498,20 @@
 
         <!-- Episodes Tab -->
         <div class="modal-tab-content" id="tabEpisodes">
-          <div id="episodesList" style="display: flex; flex-direction: column; gap: 14px;">
+          <div class="seasons-bar-wrap" id="seasonsBarWrap">
+            <div class="seasons-header">
+              <span class="seasons-title">Seasons</span>
+              <span class="seasons-count-badge" id="seasonsCountBadge">All seasons</span>
+            </div>
+            <div class="seasons-rail" id="seasonsRail">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+          <div id="episodesLoading" class="episodes-loading" style="display: none;">
+            <div class="prime-spinner"></div>
+            <span>Fetching season episodes...</span>
+          </div>
+          <div id="episodesList" class="episodes-container">
             <!-- Rendered dynamically -->
           </div>
         </div>
@@ -564,6 +577,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=2.4"></script>
+  <script src="app.js?v=2.6"></script>
 </body>
 </html>

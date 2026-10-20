@@ -1042,6 +1042,11 @@ function createStandardCard(item, showProgress = false, defaultPlatformClass = "
 // DETAILS MODAL & EPISODES
 // ==========================================================================
 
+// TV Series & Seasons dynamic episode caches
+const tvSeriesCache = {};
+const tvSeasonEpisodesCache = {};
+let currentActiveSeasonNumber = 1;
+
 function openDetailsModal(item) {
   activeModalItem = item;
   const modal = document.getElementById("detailsModal");
@@ -1053,61 +1058,39 @@ function openDetailsModal(item) {
   const genres = document.getElementById("modalGenres");
   const playBtn = document.getElementById("modalPlayBtn");
   const trivia = document.getElementById("modalTrivia");
+  const episodesTabBtn = document.querySelector('[data-tab="episodes"]');
 
-  banner.style.backgroundImage = `url('${item.backdrop}')`;
+  banner.style.backgroundImage = `url('${item.backdrop || item.poster}')`;
   title.innerText = item.title;
-  desc.innerText = item.description;
-  genres.innerText = item.category;
-  trivia.innerText = item.trivia;
+  desc.innerText = item.description || "Stream now in 4K Ultra HD and Dolby Atmos.";
+  genres.innerText = item.category || "Drama • Action • Prime Original";
+  trivia.innerText = item.trivia || "Streamed in master Dolby Vision HDR with multi-channel audio.";
 
   castList.innerText = item.cast ? item.cast.map(c => c.name).join(", ") : "Prime Video Ensemble";
 
   meta.innerHTML = `
-    <span class="meta-rating"><span>★</span> ${item.rating} IMDb</span>
-    <span class="badge-pill">${item.quality}</span>
+    <span class="meta-rating"><span>★</span> ${item.rating || '8.5'} IMDb</span>
+    <span class="badge-pill">${item.quality || '4K UHD'}</span>
     <span class="badge-pill">${item.type === 'tv' ? 'SERIES' : 'MOVIE'}</span>
-    <span>${item.year}</span>
-    <span>${item.seasons}</span>
+    <span>${item.year || ''}</span>
+    <span>${item.seasons || (item.type === 'tv' ? 'Series' : 'Movie')}</span>
   `;
 
   playBtn.onclick = () => {
     closeDetailsModal();
-    openPlayer(item);
+    const firstEp = item.firstEpisode || (item.episodes && item.episodes[0]) || { s: 1, ep: 1, title: 'Episode 1' };
+    openPlayer(item, firstEp);
   };
-
-  // Render episodes
-  const epContainer = document.getElementById("episodesList");
-  epContainer.innerHTML = "";
-  if (item.episodes && item.episodes.length > 0) {
-    item.episodes.forEach(ep => {
-      const epRow = document.createElement("div");
-      epRow.style.cssText = "display: flex; gap: 14px; background: rgba(255,255,255,0.03); border-radius: 8px; padding: 12px; cursor: pointer; border: 1px solid rgba(255,255,255,0.05); align-items: center;";
-      epRow.tabIndex = 0;
-      epRow.onclick = () => {
-        closeDetailsModal();
-        openPlayer(item, ep);
-      };
-      epRow.innerHTML = `
-        <div style="font-weight: 800; font-size: 22px; color: var(--prime-cyan); min-width: 32px;">${ep.ep}</div>
-        <div style="flex: 1;">
-          <div style="font-weight: 700; color: #fff;">${ep.title} <span style="font-size: 12px; color: var(--text-muted); font-weight: normal;">• ${ep.duration}</span></div>
-          <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">${ep.desc}</p>
-        </div>
-        <button class="btn-prime-play" style="padding: 8px 16px; font-size: 13px;">▶ Play</button>
-      `;
-      epContainer.appendChild(epRow);
-    });
-  }
 
   // Render X-Ray cast
   const castContainer = document.getElementById("xrayCastGrid");
   castContainer.innerHTML = "";
-  if (item.cast) {
+  if (item.cast && item.cast.length > 0) {
     item.cast.forEach(c => {
       const card = document.createElement("div");
       card.className = "cast-card";
       card.innerHTML = `
-        <img class="cast-img" src="${c.img}" alt="${c.name}">
+        <img class="cast-img" src="${c.img || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'}" alt="${c.name}">
         <div class="cast-name">${c.name}</div>
         <div class="cast-role">${c.role}</div>
       `;
@@ -1115,9 +1098,212 @@ function openDetailsModal(item) {
     });
   }
 
+  // Handle TV Episodes Tab vs Movie Presentation
+  if (item.type === 'tv') {
+    if (episodesTabBtn) episodesTabBtn.style.display = "inline-flex";
+    initTvSeasonsAndEpisodes(item);
+  } else {
+    if (episodesTabBtn) episodesTabBtn.style.display = "none";
+  }
+
   modal.classList.add("active");
   switchModalTab("overview");
 }
+
+async function initTvSeasonsAndEpisodes(item) {
+  const seasonsRail = document.getElementById("seasonsRail");
+  const countBadge = document.getElementById("seasonsCountBadge");
+  const epContainer = document.getElementById("episodesList");
+  const loading = document.getElementById("episodesLoading");
+
+  seasonsRail.innerHTML = "";
+  epContainer.innerHTML = "";
+  loading.style.display = "flex";
+
+  try {
+    let seriesData = tvSeriesCache[item.id];
+    if (!seriesData) {
+      const res = await fetch(`/api/tv/${item.id}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      seriesData = await res.json();
+      tvSeriesCache[item.id] = seriesData;
+    }
+
+    // Filter valid seasons (ignore season 0 specials unless it's all there is)
+    let seasons = (seriesData.seasons && seriesData.seasons.length > 0)
+      ? seriesData.seasons.filter(s => s.season_number > 0)
+      : [];
+
+    if (seasons.length === 0 && seriesData.seasons && seriesData.seasons.length > 0) {
+      seasons = seriesData.seasons;
+    }
+
+    if (seasons.length === 0) {
+      seasons = [{ season_number: 1, name: "Season 1", episode_count: seriesData.number_of_episodes || 8 }];
+    }
+
+    countBadge.innerText = `${seasons.length} ${seasons.length === 1 ? 'season' : 'seasons'} available`;
+
+    // Render Season Pills
+    seasons.forEach((s, idx) => {
+      const pill = document.createElement("button");
+      pill.className = `season-pill ${idx === 0 ? 'active' : ''}`;
+      pill.dataset.season = s.season_number;
+      const countText = s.episode_count ? `(${s.episode_count})` : '';
+      pill.innerHTML = `${s.name || `Season ${s.season_number}`} <span style="font-size: 11px; opacity: 0.8;">${countText}</span>`;
+
+      pill.onclick = () => {
+        document.querySelectorAll(".season-pill").forEach(p => p.classList.remove("active"));
+        pill.classList.add("active");
+        currentActiveSeasonNumber = s.season_number;
+        loadSeasonEpisodes(item, s.season_number);
+      };
+
+      seasonsRail.appendChild(pill);
+    });
+
+    currentActiveSeasonNumber = seasons[0].season_number;
+    await loadSeasonEpisodes(item, seasons[0].season_number);
+
+  } catch (err) {
+    console.error("[TV Engine] Failed to fetch series data:", err);
+    loading.style.display = "none";
+    renderFallbackEpisodes(item, epContainer);
+  }
+}
+
+async function loadSeasonEpisodes(item, seasonNumber) {
+  const epContainer = document.getElementById("episodesList");
+  const loading = document.getElementById("episodesLoading");
+
+  epContainer.innerHTML = "";
+  loading.style.display = "flex";
+
+  const cacheKey = `${item.id}_s${seasonNumber}`;
+
+  try {
+    let seasonData = tvSeasonEpisodesCache[cacheKey];
+    if (!seasonData) {
+      const res = await fetch(`/api/tv/${item.id}/season/${seasonNumber}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      seasonData = await res.json();
+      tvSeasonEpisodesCache[cacheKey] = seasonData;
+    }
+
+    loading.style.display = "none";
+    const episodes = seasonData.episodes || [];
+
+    if (episodes.length === 0) {
+      epContainer.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+          <div style="font-size: 28px; margin-bottom: 8px;">🎬</div>
+          <div style="font-weight: 700; color: #fff;">No episodes currently listed for Season ${seasonNumber}.</div>
+          <p style="font-size: 13px; margin-top: 4px;">Select another season above or stream available episodes.</p>
+        </div>
+      `;
+      return;
+    }
+
+    if (seasonNumber === 1 && episodes.length > 0) {
+      item.firstEpisode = {
+        s: seasonNumber,
+        ep: episodes[0].episode_number || episodes[0].number || 1,
+        title: episodes[0].name || 'Episode 1'
+      };
+    }
+
+    episodes.forEach(ep => {
+      const epNum = ep.episode_number || ep.number || 1;
+      const epTitle = ep.name || `Episode ${epNum}`;
+      const epAirDate = ep.air_date ? ep.air_date : '';
+      const epRating = ep.vote_average ? ep.vote_average.toFixed(1) : '';
+      const epDesc = ep.overview || 'Now streaming in 4K Ultra HD and multi-language audio.';
+      const epThumb = ep.still || ep.still_path || item.backdrop || item.poster || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=400&q=80';
+
+      const card = document.createElement("div");
+      card.className = "ep-card";
+      card.tabIndex = 0;
+
+      card.onclick = () => {
+        closeDetailsModal();
+        openPlayer(item, {
+          s: seasonNumber,
+          ep: epNum,
+          title: epTitle
+        });
+      };
+
+      card.innerHTML = `
+        <div class="ep-thumb-wrap">
+          <img class="ep-thumb" src="${epThumb}" alt="EP ${epNum}" loading="lazy" onerror="this.src='${item.backdrop || item.poster}'">
+          <div class="ep-badge">EP ${epNum}</div>
+          <div class="ep-play-overlay">
+            <div class="ep-play-circle">▶</div>
+          </div>
+        </div>
+        <div class="ep-info">
+          <div class="ep-title-row">
+            <span class="ep-title">${epNum}. ${epTitle}</span>
+          </div>
+          <div class="ep-meta-row">
+            ${epAirDate ? `<span>📅 ${epAirDate}</span>` : ''}
+            ${epRating ? `<span class="ep-rating">★ ${epRating}</span>` : ''}
+            <span>HD • 5.1</span>
+          </div>
+          <div class="ep-desc">${epDesc}</div>
+        </div>
+        <button class="ep-play-btn" onclick="event.stopPropagation(); closeDetailsModal(); openPlayer(activeModalItem, { s: ${seasonNumber}, ep: ${epNum}, title: '${epTitle.replace(/'/g, "\\'")}' });">
+          ▶ Play
+        </button>
+      `;
+
+      epContainer.appendChild(card);
+    });
+
+  } catch (err) {
+    console.error(`[TV Season] Error loading Season ${seasonNumber}:`, err);
+    loading.style.display = "none";
+    renderFallbackEpisodes(item, epContainer, seasonNumber);
+  }
+}
+
+function renderFallbackEpisodes(item, container, seasonNumber = 1) {
+  container.innerHTML = "";
+  const eps = (item.episodes && item.episodes.length > 0) ? item.episodes : [
+    { ep: 1, s: seasonNumber, title: `Season ${seasonNumber} Premiere`, desc: item.description || "Season premiere." },
+    { ep: 2, s: seasonNumber, title: `Episode 2`, desc: "Episode 2 presentation in 4K Ultra HD." },
+    { ep: 3, s: seasonNumber, title: `Episode 3`, desc: "Episode 3 presentation in 4K Ultra HD." },
+    { ep: 4, s: seasonNumber, title: `Episode 4`, desc: "Episode 4 presentation in 4K Ultra HD." }
+  ];
+
+  eps.forEach(ep => {
+    const card = document.createElement("div");
+    card.className = "ep-card";
+    card.tabIndex = 0;
+    card.onclick = () => {
+      closeDetailsModal();
+      openPlayer(item, { s: ep.s || seasonNumber, ep: ep.ep, title: ep.title });
+    };
+    card.innerHTML = `
+      <div class="ep-thumb-wrap">
+        <img class="ep-thumb" src="${item.backdrop || item.poster}" alt="EP ${ep.ep}">
+        <div class="ep-badge">EP ${ep.ep}</div>
+        <div class="ep-play-overlay">
+          <div class="ep-play-circle">▶</div>
+        </div>
+      </div>
+      <div class="ep-info">
+        <div class="ep-title-row">
+          <span class="ep-title">${ep.ep}. ${ep.title}</span>
+        </div>
+        <div class="ep-desc">${ep.desc || item.description || ''}</div>
+      </div>
+      <button class="ep-play-btn">▶ Play</button>
+    `;
+    container.appendChild(card);
+  });
+}
+
 
 function closeDetailsModal() {
   document.getElementById("detailsModal").classList.remove("active");
