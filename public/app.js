@@ -2,6 +2,14 @@
 // AMAZON PRIME VIDEO TV - SYNCED CATALOG WITH REAL TMDB METADATA & STREAM EMBEDS
 // ==========================================================================
 
+// Neutralize clickjack popups and ad redirects
+try {
+  window.open = function() {
+    console.warn("[AdBlock] Neutralized ad popup attempt");
+    return null;
+  };
+} catch (e) {}
+
 const SERVERS = [
   { id: "framex", name: "FrameXTV Cloud Player", buildUrl: (type, id, s, e) => type === "tv" ? `https://framextv.cc/embed/tv/${id}/${s}/${e}?autoplay=1` : `https://framextv.cc/embed/movie/${id}?autoplay=1` },
   { id: "videasy", name: "Videasy 4K Ultra", buildUrl: (type, id, s, e) => type === "tv" ? `https://player.videasy.to/tv/${id}/${s}/${e}` : `https://player.videasy.to/movie/${id}` },
