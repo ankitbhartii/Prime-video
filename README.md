@@ -15,6 +15,12 @@
   <b>Prime Video UI/UX</b> reimagined as a <b>universal content aggregator</b>. Seamlessly explore, search, and stream trending movies, binge-worthy TV series, anime, and live channels aggregated across <b>Netflix</b>, <b>Disney+ Hotstar</b>, <b>Amazon Prime</b>, <b>HBO Max</b>, and <b>Box Office premieres</b>.
 </p>
 
+<br/>
+
+<p align="center">
+  <img src="docs/screenshots/preview.png" alt="Prime Video Application Interface Showcase" width="100%" style="border-radius: 8px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);" />
+</p>
+
 ---
 
 </div>
