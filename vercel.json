@@ -16,10 +16,6 @@
     {
       "source": "/api/tv",
       "destination": "/api/tv.js"
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": "https://api.framextv.tech/api/$1"
     }
   ]
 }
