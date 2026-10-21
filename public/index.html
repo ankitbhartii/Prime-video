@@ -3,8 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#00050d">
+  <meta name="description" content="Prime Video — Stream movies and TV shows from Netflix, Disney+, HBO Max, and more.">
+  <!-- Block known ad networks from executing scripts on this page -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self' blob: data:;
+    script-src 'self' 'unsafe-inline' 'unsafe-eval'
+      https://framextv.cc https://player.videasy.to https://vidlink.pro
+      https://vidsrc.to https://autoembed.cc https://moviesapi.club
+      https://www.2embed.cc https://embed.su
+      https://image.tmdb.org https://api.framextv.tech https://api.themoviedb.org;
+    frame-src *;
+    img-src * data: blob:;
+    media-src * blob: data:;
+    connect-src *;
+    style-src 'self' 'unsafe-inline';
+  ">
   <title>Prime Video</title>
-  <link rel="stylesheet" href="style.css?v=2.6">
+  <link rel="stylesheet" href="style.css?v=3.1">
+  <link rel="manifest" href="manifest.json">
 </head>
 <body>
 
@@ -47,6 +64,14 @@
         <span id="fsIcon">⛶</span> Fullscreen TV
       </button>
 
+      <button class="surprise-me-btn" onclick="surpriseMe()" title="Pick a random title for me!">
+        <span class="dice">🎲</span> Surprise Me
+      </button>
+
+      <button class="header-btn" onclick="switchCategory('mylist')" title="My Watchlist" id="myListNavBtn">
+        ❤️ My List
+      </button>
+
       <button class="header-btn" onclick="openViewAllCategory('all')" title="Browse All Shows & Movies in One Grid">
         ✨ All Shows & Movies
       </button>
@@ -87,6 +112,8 @@
         </button>
       </div>
     </div>
+  <!-- Billboard auto-rotate progress dots -->
+  <div class="billboard-dots" id="billboardDots"></div>
   </section>
 
   <!-- ==================== CONTENT RAILS / CAROUSELS ==================== -->
@@ -113,6 +140,50 @@
         <span class="icon" style="color: #f47521;">⛩</span> Anime Hub
       </div>
     </div>
+
+    <!-- Continue Watching (appears only when user has watch history) -->
+    <section class="content-row" id="rowContinueWatching">
+      <div class="row-header">
+        <div class="row-title-group">
+          <h2 class="row-title">Continue Watching</h2>
+          <p class="row-subtitle">Pick up where you left off</p>
+        </div>
+        <span class="row-see-all" onclick="clearContinueWatching()" style="color: var(--text-secondary); font-size: 13px;">Clear all</span>
+      </div>
+      <div class="scroller-wrapper">
+        <button class="slider-btn slider-prev hidden" onclick="slideRow('scrollerContinue', -1)" aria-label="Slide Left" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="cards-scroller" id="scrollerContinue">
+          <!-- Rendered dynamically -->
+        </div>
+        <button class="slider-btn slider-next" onclick="slideRow('scrollerContinue', 1)" aria-label="Slide Right" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- My List (appears only when user adds to watchlist) -->
+    <section class="content-row" id="rowMyList">
+      <div class="row-header">
+        <div class="row-title-group">
+          <h2 class="row-title">❤️ My List</h2>
+          <p class="row-subtitle">Titles you saved to watch later</p>
+        </div>
+        <span class="row-see-all" onclick="openViewAllCategory('mylist')">View all ›</span>
+      </div>
+      <div class="scroller-wrapper">
+        <button class="slider-btn slider-prev hidden" onclick="slideRow('scrollerMyList', -1)" aria-label="Slide Left" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="cards-scroller" id="scrollerMyList">
+          <!-- Rendered dynamically -->
+        </div>
+        <button class="slider-btn slider-next" onclick="slideRow('scrollerMyList', 1)" aria-label="Slide Right" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </section>
 
     <!-- Real-time Live Search Results -->
     <section class="content-row" id="rowSearch" style="display: none;">
@@ -413,6 +484,31 @@
       </div>
     </section>
 
+    <!-- ==================== HOME ENDLESS DISCOVER GRID ==================== -->
+    <section class="content-row" id="rowEndlessDiscover">
+      <div class="row-header">
+        <div class="row-title-group">
+          <h2 class="row-title">
+            <span id="endlessSectionTitle">Explore All Titles — Movies, Series & Anime</span>
+            <span class="category-count" id="endlessDiscoverCount">20,000+</span>
+          </h2>
+          <p class="row-subtitle" id="endlessSectionSubtitle">Continuous streaming catalog — scroll down to explore endless blockbusters and episodes</p>
+        </div>
+      </div>
+      <div class="viewall-grid" id="homeEndlessGrid">
+        <!-- Dynamically filled with endless poster cards as user scrolls -->
+      </div>
+      <div class="viewall-loader" id="homeEndlessLoader">
+        <div class="viewall-spinner"></div>
+        <span>Loading more titles from catalog…</span>
+      </div>
+      <div class="viewall-loadmore-wrap">
+        <button class="viewall-loadmore-btn" id="homeLoadMoreBtn" onclick="loadNextHomeEndlessBatch(2)">
+          Load More Titles (20,000+ Available) ▾
+        </button>
+      </div>
+    </section>
+
   </main>
 
   <!-- ==================== FULLPAGE CATEGORY / ALL SHOWS LISTING PAGE ==================== -->
@@ -426,10 +522,10 @@
 
     <div class="viewall-header">
       <div class="viewall-title-wrap">
-        <h1 class="viewall-title" id="viewAllTitle">Popular Movies</h1>
-        <span class="category-count" id="viewAllCount">19</span>
+        <h1 class="viewall-title" id="viewAllTitle">All Shows & Movies</h1>
+        <span class="category-count" id="viewAllCount">50,000+ Titles</span>
       </div>
-      <p class="viewall-subtitle" id="viewAllSubtitle">Browse all available movies, series, and streaming titles</p>
+      <p class="viewall-subtitle" id="viewAllSubtitle">Complete streaming catalog — browse 20,000+ movies, series, and anime titles</p>
     </div>
 
     <div class="viewall-toolbar">
@@ -437,6 +533,7 @@
         <button class="viewall-filter-btn active" data-filter="all" onclick="filterViewAllType('all')">All Titles</button>
         <button class="viewall-filter-btn" data-filter="movie" onclick="filterViewAllType('movie')">Movies</button>
         <button class="viewall-filter-btn" data-filter="tv" onclick="filterViewAllType('tv')">TV Series</button>
+        <button class="viewall-filter-btn" data-filter="anime" onclick="filterViewAllType('anime')">Anime Hub</button>
       </div>
 
       <div class="viewall-sort-wrap">
@@ -452,6 +549,17 @@
 
     <div class="viewall-grid" id="viewAllGrid">
       <!-- Dynamically filled with vertical poster cards -->
+    </div>
+
+    <!-- Infinite Scroll Loading Indicator & Manual Button -->
+    <div class="viewall-loader" id="viewAllLoader" style="display: none;">
+      <div class="viewall-spinner"></div>
+      <span>Loading more titles from catalog…</span>
+    </div>
+    <div class="viewall-loadmore-wrap">
+      <button class="viewall-loadmore-btn" id="viewAllLoadMoreBtn" onclick="loadNextViewAllBatch(3)">
+        Load Next 50 Titles (20,000+ Available) ▾
+      </button>
     </div>
   </section>
 
@@ -538,7 +646,7 @@
       <iframe
         id="theatreIframe"
         class="player-iframe"
-        sandbox="allow-forms allow-scripts allow-same-origin allow-presentation"
+        sandbox="allow-forms allow-scripts allow-same-origin allow-presentation allow-pointer-lock"
         allowfullscreen="true"
         webkitallowfullscreen="true"
         mozallowfullscreen="true"
@@ -559,17 +667,19 @@
           </div>
 
           <div style="display: flex; align-items: center; gap: 14px;">
-            <div class="server-picker" style="display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.7); border: 1px solid var(--border-subtle); border-radius: 20px; padding: 4px 12px;">
-              <span style="font-size: 11px; color: var(--prime-cyan); font-weight: 700;">STREAM:</span>
-              <select id="serverSelect" onchange="switchServer(this.selectedIndex)" style="background: transparent; border: none; color: #fff; font-size: 13px; font-weight: 600; outline: none; cursor: pointer;">
-                <option value="0" style="background: #0d1424; color: #fff;">⚡ Server 1: FrameX Native</option>
-                <option value="1" style="background: #0d1424; color: #fff;">🚀 Server 2: Videasy 4K Ultra</option>
-                <option value="2" style="background: #0d1424; color: #fff;">🌐 Server 3: VidLink Pro</option>
+
+            <!-- ── Stream Server Picker ── -->
+            <div class="server-picker">
+              <span class="server-picker-label">STREAM:</span>
+              <select id="serverSelect" onchange="switchServer(this.selectedIndex)">
+                <option value="0" style="background:#0d1424;color:#fff;">⚡ Server 1 — FrameX Native</option>
+                <option value="1" style="background:#0d1424;color:#fff;">🚀 Server 2 — Videasy 4K Ultra</option>
+                <option value="2" style="background:#0d1424;color:#fff;">🌐 Server 3 — VidLink Pro</option>
               </select>
             </div>
 
             <button class="header-btn" onclick="togglePlayerFullscreen()" title="Toggle Fullscreen">
-              ⛶ True Fullscreen
+              ⛶ Fullscreen
             </button>
           </div>
         </div>
@@ -577,6 +687,23 @@
     </div>
   </div>
 
-  <script src="app.js?v=2.6"></script>
+  <!-- Global Toast Notification -->
+  <div class="prime-toast" id="primeToast">
+    <span class="toast-icon" id="primeToastIcon">✅</span>
+    <span id="primeToastMsg">Added to My List</span>
+  </div>
+
+  <!-- PWA Install Banner -->
+  <div class="pwa-install-banner" id="pwaInstallBanner">
+    <span class="pwa-icon">📺</span>
+    <div class="pwa-text">
+      <strong>Install Prime Video App</strong>
+      <span>Watch offline, launch instantly from your home screen</span>
+    </div>
+    <button class="pwa-install-btn" onclick="triggerPwaInstall()">Install App</button>
+    <button class="pwa-dismiss-btn" onclick="dismissPwaBanner()" title="Dismiss">×</button>
+  </div>
+
+  <script src="app.js?v=3.2"></script>
 </body>
 </html>

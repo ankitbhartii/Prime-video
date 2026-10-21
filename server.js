@@ -41,7 +41,28 @@ const server = http.createServer((req, res) => {
       return;
     }
 
-    const targetUrl = `https://api.framextv.tech${req.url}`;
+    let targetUrl = `https://api.framextv.tech${req.url}`;
+    if (req.url.startsWith('/api/anime')) {
+      const urlObj = new URL(req.url, 'http://localhost');
+      const page = parseInt(urlObj.searchParams.get('page') || '1');
+      const TOP_ANIME = [
+        'anime', 'one piece', 'naruto', 'attack on titan', 'demon slayer',
+        'jujutsu kaisen', 'dragon ball', 'bleach', 'hunter x hunter', 'solo leveling',
+        'chainsaw man', 'death note', 'spy x family', 'my hero academia', 'tokyo ghoul'
+      ];
+      const query = TOP_ANIME[(page - 1) % TOP_ANIME.length];
+      targetUrl = `https://api.framextv.tech/api/search?q=${encodeURIComponent(query)}`;
+    } else if (req.url.startsWith('/api/tv?')) {
+      const urlObj = new URL(req.url, 'http://localhost');
+      const id = urlObj.searchParams.get('id');
+      const season = urlObj.searchParams.get('season');
+      if (id) {
+        targetUrl = season 
+          ? `https://api.framextv.tech/api/tv/${id}/season/${season}`
+          : `https://api.framextv.tech/api/tv/${id}`;
+      }
+    }
+
     const options = {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
