@@ -55,9 +55,6 @@
           <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
         </svg>
         <input type="text" id="searchInput" class="search-input" placeholder="Search movies, TV shows, actors..." autocomplete="off">
-        
-        <!-- Floating Dropdown Recommendations -->
-        <div class="search-dropdown" id="searchDropdown" style="display: none;"></div>
       </div>
 
       <button class="header-btn" id="fsToggleBtn" onclick="toggleFullScreen()">
@@ -65,7 +62,7 @@
       </button>
 
       <button class="surprise-me-btn" onclick="surpriseMe()" title="Pick a random title for me!">
-        <span class="dice">🎲</span> Surprise Me
+        <span class="dice">🎲</span><span class="surprise-text">Surprise Me</span>
       </button>
 
       <button class="header-btn" onclick="switchCategory('mylist')" title="My Watchlist" id="myListNavBtn">
@@ -79,6 +76,9 @@
       <div class="profile-avatar" title="Ankit">A</div>
     </div>
   </header>
+
+  <!-- Floating Dropdown Recommendations (Root level so it spans full mobile viewport) -->
+  <div class="search-dropdown" id="searchDropdown" style="display: none;"></div>
 
   <!-- ==================== HERO BILLBOARD ==================== -->
   <section class="hero-billboard" id="heroBillboard">
@@ -105,7 +105,7 @@
           <span>▶</span> Watch Now
         </button>
         <button class="btn-secondary" onclick="openHeroDetails()">
-          <span>ℹ</span> More Details
+          <span>ℹ</span> Details
         </button>
         <button class="btn-circle" title="Add to Watchlist" onclick="toggleWatchlist(currentHeroItem)">
           <span>+</span>
@@ -123,6 +123,12 @@
     <div class="channels-rail" id="channelsRail">
       <div class="channel-pill active" data-channel="all" onclick="switchCategory('all')">
         <span class="icon">✨</span> All Platforms
+      </div>
+      <div class="channel-pill" data-channel="movie" onclick="switchCategory('movie')">
+        <span class="icon">🎬</span> Movies
+      </div>
+      <div class="channel-pill" data-channel="tv" onclick="switchCategory('tv')">
+        <span class="icon">📺</span> TV Series
       </div>
       <div class="channel-pill" data-channel="netflix" onclick="switchCategory('netflix')">
         <span class="icon" style="color: #e50914; font-weight: 900;">N</span> Netflix
@@ -704,6 +710,30 @@
     <button class="pwa-dismiss-btn" onclick="dismissPwaBanner()" title="Dismiss">×</button>
   </div>
 
-  <script src="app.js?v=3.2"></script>
+  <!-- ==================== MOBILE BOTTOM NAVIGATION ==================== -->
+  <nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Mobile Navigation">
+    <button class="mobile-nav-btn active" data-tab="home" onclick="handleMobileNavClick('home')">
+      <span class="mobile-nav-icon">🏠</span>
+      <span class="mobile-nav-label">Home</span>
+    </button>
+    <button class="mobile-nav-btn" data-tab="movies" onclick="handleMobileNavClick('movies')">
+      <span class="mobile-nav-icon">🎬</span>
+      <span class="mobile-nav-label">Movies</span>
+    </button>
+    <button class="mobile-nav-btn" data-tab="tv" onclick="handleMobileNavClick('tv')">
+      <span class="mobile-nav-icon">📺</span>
+      <span class="mobile-nav-label">TV Series</span>
+    </button>
+    <button class="mobile-nav-btn" data-tab="all" onclick="handleMobileNavClick('all')">
+      <span class="mobile-nav-icon">✨</span>
+      <span class="mobile-nav-label">All (20k+)</span>
+    </button>
+    <button class="mobile-nav-btn" data-tab="mylist" onclick="handleMobileNavClick('mylist')">
+      <span class="mobile-nav-icon">❤️</span>
+      <span class="mobile-nav-label">My List</span>
+    </button>
+  </nav>
+
+  <script src="app.js?v=3.3"></script>
 </body>
 </html>

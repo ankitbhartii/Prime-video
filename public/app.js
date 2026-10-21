@@ -867,6 +867,10 @@ async function openViewAllCategory(catKey = "all") {
   if (content) content.style.display = "none";
   if (searchRow) searchRow.style.display = "none";
   if (page) page.style.display = "flex";
+  if (typeof syncMobileNav === "function") {
+    if (catKey === "mylist") syncMobileNav("mylist");
+    else syncMobileNav("all");
+  }
 
   const meta = CATEGORY_META[catKey] || {
     title: "All Shows & Movies",
@@ -2093,6 +2097,13 @@ function switchCategory(cat) {
     pill.classList.toggle("active", pill.dataset.channel === cat);
   });
 
+  // Sync mobile bottom navigation
+  if (typeof syncMobileNav === "function") {
+    if (cat === "movie") syncMobileNav("movies");
+    else if (cat === "tv") syncMobileNav("tv");
+    else if (cat === "all") syncMobileNav("home");
+  }
+
   const rowSearch = document.getElementById("rowSearch");
   if (rowSearch) rowSearch.style.display = "none";
 
@@ -2270,7 +2281,9 @@ function setupSearch() {
 
   // Close dropdown when clicking outside
   document.addEventListener("click", (e) => {
-    if (searchContainer && !searchContainer.contains(e.target)) {
+    const isInsideSearch = (searchContainer && searchContainer.contains(e.target)) ||
+                           (searchDropdown && searchDropdown.contains(e.target));
+    if (!isInsideSearch) {
       closeSearchDropdown();
     }
   });
@@ -2957,3 +2970,42 @@ document.addEventListener('DOMContentLoaded', () => {
     hudTop.prepend(badge);
   }
 });
+
+/* ============================================================
+   MOBILE BOTTOM NAVIGATION HANDLERS
+   ============================================================ */
+
+function syncMobileNav(tab) {
+  document.querySelectorAll(".mobile-nav-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.tab === tab);
+  });
+}
+
+function handleMobileNavClick(tab) {
+  syncMobileNav(tab);
+
+  if (tab === "home") {
+    closeViewAllPage();
+    switchCategory("all");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } else if (tab === "movies") {
+    closeViewAllPage();
+    switchCategory("movie");
+    const el = document.getElementById("channelsRail") || document.getElementById("contentContainer");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  } else if (tab === "tv") {
+    closeViewAllPage();
+    switchCategory("tv");
+    const el = document.getElementById("channelsRail") || document.getElementById("contentContainer");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  } else if (tab === "all") {
+    openViewAllCategory("all");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } else if (tab === "mylist") {
+    openViewAllCategory("mylist");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+}
+window.handleMobileNavClick = handleMobileNavClick;
+window.syncMobileNav = syncMobileNav;
+
