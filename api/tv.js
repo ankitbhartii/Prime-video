@@ -73,7 +73,50 @@ module.exports = async (req, res) => {
   const pathParam = req.query?.path || urlObj.searchParams.get('path');
   const idParam = req.query?.id || urlObj.searchParams.get('id');
   const seasonParam = req.query?.season || urlObj.searchParams.get('season');
+  const pageParam = req.query?.page || urlObj.searchParams.get('page');
   const slugParam = req.query?.slug;
+
+  // If this is a catalog pagination request (/api/tv?page=X)
+  if (!idParam && !pathParam && !slugParam && pageParam) {
+    const targetUrl = `https://api.framextv.tech/api/tv?page=${encodeURIComponent(pageParam)}`;
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Referer': 'https://framextv.cc/',
+      'Accept': 'application/json, text/plain, */*'
+    };
+
+    try {
+      if (typeof fetch !== 'undefined') {
+        const response = await fetch(targetUrl, { headers });
+        if (response.ok) {
+          const data = await response.json();
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
+          return res.status(200).json(data);
+        }
+      }
+
+      https.get(targetUrl, { headers }, (proxyRes) => {
+        let body = '';
+        proxyRes.on('data', chunk => body += chunk);
+        proxyRes.on('end', () => {
+          try {
+            const json = JSON.parse(body);
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
+            return res.status(200).json(json);
+          } catch (e) {
+            return res.status(200).json({ success: false, results: [] });
+          }
+        });
+      }).on('error', (err) => {
+        return res.status(500).json({ error: err.message, results: [] });
+      });
+      return;
+    } catch (err) {
+      return res.status(500).json({ error: err.message, results: [] });
+    }
+  }
 
   let targetPath = '';
   if (Array.isArray(slugParam)) {

@@ -2371,3 +2371,467 @@ html, body {
 }
 
 
+
+
+/* ============================================================
+   SERVER PICKER (keep from before)
+   ============================================================ */
+
+.server-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 22px;
+  padding: 4px 12px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.server-picker-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--prime-cyan, #00a8e1);
+  white-space: nowrap;
+}
+
+.server-picker select {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  max-width: 200px;
+}
+
+@media (max-width: 600px) {
+  .server-picker { padding: 3px 8px; }
+  .server-picker-label { display: none; }
+  .server-picker select { font-size: 11px; max-width: 130px; }
+}
+
+/* ============================================================
+   TOAST NOTIFICATION SYSTEM
+   ============================================================ */
+
+.prime-toast {
+  position: fixed;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(10, 20, 40, 0.96);
+  border: 1px solid rgba(0, 168, 225, 0.4);
+  border-radius: 50px;
+  padding: 12px 24px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.16,1,0.3,1), transform 0.3s cubic-bezier(0.16,1,0.3,1);
+  z-index: 999999;
+  white-space: nowrap;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,168,225,0.15);
+}
+.prime-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.prime-toast.toast-success { border-color: rgba(34, 197, 94, 0.5); }
+.prime-toast.toast-warning { border-color: rgba(245, 158, 11, 0.5); }
+.prime-toast.toast-error   { border-color: rgba(239, 68, 68, 0.5); }
+.prime-toast .toast-icon   { font-size: 18px; }
+
+/* ============================================================
+   SKELETON LOADING SCREENS
+   ============================================================ */
+
+@keyframes shimmer {
+  0%   { background-position: -700px 0; }
+  100% { background-position: 700px 0; }
+}
+
+.skeleton-card {
+  flex: none;
+  width: 185px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-card);
+}
+.skeleton-thumb {
+  width: 100%;
+  height: 260px;
+  background: linear-gradient(90deg, #111827 25%, #1e293b 50%, #111827 75%);
+  background-size: 700px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+.skeleton-info { padding: 10px 12px; display: flex; flex-direction: column; gap: 7px; }
+.skeleton-line {
+  height: 11px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #111827 25%, #1e293b 50%, #111827 75%);
+  background-size: 700px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+.skeleton-line.short { width: 55%; }
+
+/* ============================================================
+   CONTINUE WATCHING ROW
+   ============================================================ */
+
+#rowContinueWatching { display: none; }
+#rowContinueWatching.has-items { display: flex; }
+
+.continue-card {
+  flex: none;
+  width: 260px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-card);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  border: 1px solid transparent;
+  position: relative;
+}
+.continue-card:hover {
+  transform: scale(1.04) translateY(-4px);
+  border-color: var(--prime-cyan);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+}
+.continue-thumb-wrap {
+  position: relative;
+  width: 100%;
+  height: 148px;
+  overflow: hidden;
+}
+.continue-thumb-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.continue-play-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.38);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.continue-card:hover .continue-play-overlay { opacity: 1; }
+.continue-play-overlay span {
+  font-size: 40px;
+  filter: drop-shadow(0 2px 8px #000);
+}
+.continue-progress-bar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 4px;
+  background: rgba(255,255,255,0.2);
+}
+.continue-progress-fill {
+  height: 100%;
+  background: var(--prime-cyan);
+  border-radius: 0 2px 2px 0;
+  transition: width 0.3s;
+}
+.continue-remove-btn {
+  position: absolute;
+  top: 6px; right: 6px;
+  background: rgba(0,0,0,0.7);
+  border: none;
+  color: #fff;
+  border-radius: 50%;
+  width: 26px; height: 26px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 2;
+}
+.continue-card:hover .continue-remove-btn { opacity: 1; }
+.continue-info {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.continue-title {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.continue-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* ============================================================
+   WATCHLIST HEART BUTTON ON CARDS
+   ============================================================ */
+
+.card-watchlist-btn {
+  position: absolute;
+  top: 8px; right: 8px;
+  background: rgba(0,0,0,0.7);
+  border: none;
+  color: rgba(255,255,255,0.6);
+  border-radius: 50%;
+  width: 30px; height: 30px;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s, transform 0.15s;
+  z-index: 3;
+  backdrop-filter: blur(4px);
+}
+.movie-card:hover .card-watchlist-btn,
+.continue-card:hover .card-watchlist-btn { opacity: 1; }
+.card-watchlist-btn.in-list { opacity: 1; color: #f43f5e; }
+.card-watchlist-btn:hover { color: #f43f5e; transform: scale(1.2); }
+.card-watchlist-btn.pop {
+  animation: heartPop 0.35s cubic-bezier(0.16,1,0.3,1);
+}
+@keyframes heartPop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.45); }
+  100% { transform: scale(1); }
+}
+
+/* ============================================================
+   WATCHLIST ROW (My List)
+   ============================================================ */
+
+#rowMyList { display: none; }
+#rowMyList.has-items { display: flex; }
+
+/* ============================================================
+   BILLBOARD AUTO-ROTATE DOTS
+   ============================================================ */
+
+.billboard-dots {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+.billboard-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.35);
+  cursor: pointer;
+  transition: background 0.3s, transform 0.3s;
+  border: none;
+  padding: 0;
+}
+.billboard-dot.active {
+  background: #fff;
+  transform: scale(1.4);
+}
+.billboard-dot-progress {
+  width: 28px; height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.3);
+  cursor: pointer;
+  border: none;
+  padding: 0;
+  overflow: hidden;
+  transition: transform 0.2s;
+}
+.billboard-dot-progress.active { transform: scaleY(1.5); }
+.billboard-dot-progress-fill {
+  height: 100%;
+  background: var(--prime-cyan);
+  width: 0%;
+  transition: width 0.1s linear;
+  border-radius: 2px;
+}
+
+/* Billboard crossfade */
+.hero-billboard {
+  transition: background-image 0s;
+}
+.hero-billboard.fading { opacity: 0; transition: opacity 0.4s ease; }
+.hero-billboard.fading-in { opacity: 1; transition: opacity 0.6s ease; }
+
+/* ============================================================
+   SURPRISE ME BUTTON
+   ============================================================ */
+
+.surprise-me-btn {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: 50px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  white-space: nowrap;
+  box-shadow: 0 2px 12px rgba(99,102,241,0.4);
+}
+.surprise-me-btn:hover {
+  transform: scale(1.06);
+  box-shadow: 0 4px 20px rgba(99,102,241,0.6);
+}
+.surprise-me-btn .dice { font-size: 16px; }
+
+/* ============================================================
+   AUTO-FAILOVER STATUS INDICATOR
+   ============================================================ */
+
+.failover-badge {
+  background: rgba(245,158,11,0.2);
+  border: 1px solid rgba(245,158,11,0.5);
+  color: #f59e0b;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+.failover-badge.visible { display: flex; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+
+/* ============================================================
+   PWA INSTALL BANNER
+   ============================================================ */
+
+.pwa-install-banner {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: linear-gradient(135deg, #0a1624 0%, #0d1f3c 100%);
+  border-top: 1px solid rgba(0,168,225,0.3);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  z-index: 99990;
+  transform: translateY(100%);
+  transition: transform 0.4s cubic-bezier(0.16,1,0.3,1);
+  box-shadow: 0 -8px 32px rgba(0,0,0,0.5);
+}
+.pwa-install-banner.visible { transform: translateY(0); }
+.pwa-install-banner .pwa-icon { font-size: 32px; }
+.pwa-install-banner .pwa-text { flex: 1; }
+.pwa-install-banner .pwa-text strong { display: block; font-size: 14px; }
+.pwa-install-banner .pwa-text span { font-size: 12px; color: var(--text-secondary); }
+.pwa-install-btn {
+  background: var(--prime-cyan);
+  color: #000;
+  font-weight: 800;
+  font-size: 13px;
+  padding: 9px 18px;
+  border-radius: 50px;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s;
+  white-space: nowrap;
+}
+.pwa-install-btn:hover { transform: scale(1.05); }
+.pwa-dismiss-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+
+/* ============================================================
+   INFINITE SCROLL LOADER (View All Catalog)
+   ============================================================ */
+
+.viewall-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 30px 20px 80px 20px;
+  color: var(--prime-cyan);
+  font-size: 14px;
+  font-weight: 700;
+  width: 100%;
+}
+
+.viewall-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(0, 168, 225, 0.2);
+  border-top-color: var(--prime-cyan);
+  border-radius: 50%;
+  animation: spinViewAll 0.75s linear infinite;
+}
+
+@keyframes spinViewAll {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   LOAD MORE BUTTON (Endless Catalog)
+   ============================================================ */
+
+.viewall-loadmore-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px 0 60px 0;
+  width: 100%;
+}
+
+.viewall-loadmore-btn {
+  background: linear-gradient(135deg, rgba(0, 168, 225, 0.16) 0%, rgba(0, 120, 184, 0.28) 100%);
+  border: 1.5px solid var(--prime-cyan);
+  color: #fff;
+  padding: 14px 36px;
+  border-radius: 40px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 24px rgba(0, 168, 225, 0.25);
+}
+
+.viewall-loadmore-btn:hover {
+  background: var(--prime-cyan);
+  color: #000;
+  transform: translateY(-3px) scale(1.04);
+  box-shadow: 0 8px 32px rgba(0, 168, 225, 0.55);
+}
+
+.viewall-loadmore-btn:active {
+  transform: translateY(0) scale(0.98);
+}

@@ -10,6 +10,18 @@
       "destination": "/api/search.js"
     },
     {
+      "source": "/api/movies",
+      "destination": "/api/movies.js"
+    },
+    {
+      "source": "/api/discover",
+      "destination": "/api/discover.js"
+    },
+    {
+      "source": "/api/anime",
+      "destination": "/api/anime.js"
+    },
+    {
       "source": "/api/tv/(.*)",
       "destination": "/api/tv.js?path=$1"
     },

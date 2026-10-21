@@ -2,18 +2,54 @@
 // AMAZON PRIME VIDEO TV - SYNCED CATALOG WITH REAL TMDB METADATA & STREAM EMBEDS
 // ==========================================================================
 
-// Neutralize clickjack popups and ad redirects
-try {
-  window.open = function() {
-    console.warn("[AdBlock] Neutralized ad popup attempt");
-    return null;
-  };
-} catch (e) {}
+// Ad / Popup Blocker
+(function _adBlock() {
+  try { window.open = () => { console.warn("[AdBlock] popup blocked"); return null; }; } catch(e) {}
+  try {
+    Object.defineProperty(window, "Notification", {
+      get: () => ({ requestPermission: () => Promise.resolve("denied"), permission: "denied" }),
+      configurable: false
+    });
+  } catch(e) {}
+  document.addEventListener("click", (ev) => {
+    const a = ev.target.closest("a");
+    if (a && ["_blank","_top","_parent","_new"].includes(a.target)) {
+      ev.preventDefault(); ev.stopImmediatePropagation();
+    }
+  }, true);
+  window.addEventListener("beforeunload", (ev) => {
+    if (document.getElementById("playerView")?.classList.contains("active")) {
+      ev.preventDefault(); ev.returnValue = "";
+    }
+  });
+})();
 
+// ── Stream servers ──────────────────────────────────────────────────────────
 const SERVERS = [
-  { id: "framex", name: "FrameXTV Cloud Player", buildUrl: (type, id, s, e) => type === "tv" ? `https://framextv.cc/embed/tv/${id}/${s}/${e}?autoplay=1` : `https://framextv.cc/embed/movie/${id}?autoplay=1` },
-  { id: "videasy", name: "Videasy 4K Ultra", buildUrl: (type, id, s, e) => type === "tv" ? `https://player.videasy.to/tv/${id}/${s}/${e}` : `https://player.videasy.to/movie/${id}` },
-  { id: "vidlink", name: "VidLink Multi-Audio", buildUrl: (type, id, s, e) => type === "tv" ? `https://vidlink.pro/tv/${id}/${s}/${e}` : `https://vidlink.pro/movie/${id}` }
+  {
+    id: "framex",
+    name: "⚡ Server 1 — FrameX Native",
+    buildUrl: (type, id, s, e) =>
+      type === "tv"
+        ? `https://framextv.cc/embed/tv/${id}/${s}/${e}?autoplay=1`
+        : `https://framextv.cc/embed/movie/${id}?autoplay=1`
+  },
+  {
+    id: "videasy",
+    name: "🚀 Server 2 — Videasy 4K Ultra",
+    buildUrl: (type, id, s, e) =>
+      type === "tv"
+        ? `https://player.videasy.to/tv/${id}/${s}/${e}`
+        : `https://player.videasy.to/movie/${id}`
+  },
+  {
+    id: "vidlink",
+    name: "🌐 Server 3 — VidLink Pro",
+    buildUrl: (type, id, s, e) =>
+      type === "tv"
+        ? `https://vidlink.pro/tv/${id}/${s}/${e}`
+        : `https://vidlink.pro/movie/${id}`
+  }
 ];
 
 let activeServerIndex = 0;
@@ -250,8 +286,57 @@ let currentHeroItem = CATALOG[0];
 let activeModalItem = null;
 let currentPlayingItem = null;
 let currentPlayingEpisode = null;
-let watchlist = new Set();
 let hudTimeout = null;
+let failoverTimer = null;
+let billboardTimer = null;
+let billboardIndex = 0;
+let billboardItems = [];
+let pwaInstallEvent = null;
+
+// ── Persistent Watchlist (localStorage) ────────────────────────────────────
+const WATCHLIST_KEY  = 'prime_watchlist_v1';
+const PROGRESS_KEY   = 'prime_watch_progress_v1';
+const CONTINUE_KEY   = 'prime_continue_watching_v1';
+
+function _loadWatchlist() {
+  try { return new Set(JSON.parse(localStorage.getItem(WATCHLIST_KEY)) || []); } catch { return new Set(); }
+}
+function _saveWatchlist() {
+  try { localStorage.setItem(WATCHLIST_KEY, JSON.stringify([...watchlist])); } catch {}
+}
+let watchlist = _loadWatchlist();
+
+// id → { pct: 0-100, ts: Date.now(), item: {...}, episode: {...} }
+function _loadContinue() {
+  try { return JSON.parse(localStorage.getItem(CONTINUE_KEY)) || {}; } catch { return {}; }
+}
+function _saveContinue(map) {
+  try { localStorage.setItem(CONTINUE_KEY, JSON.stringify(map)); } catch {}
+}
+
+// ── Watch Progress helpers ─────────────────────────────────────────────────
+function saveWatchProgress(item, episode, pct) {
+  if (!item) return;
+  const map = _loadContinue();
+  const key = episode ? `${item.id}_s${episode.s}e${episode.ep}` : item.id;
+  map[key] = { pct: Math.min(Math.round(pct), 97), ts: Date.now(), itemId: item.id, episode: episode || null };
+  _saveContinue(map);
+  // Also save item data for the Continue Watching row
+  const items = _loadContinueItems();
+  const existIdx = items.findIndex(c => c.id === item.id && (!episode || (c._ep && c._ep.s === episode.s && c._ep.ep === episode.ep)));
+  const entry = { ...item, _ep: episode, _pct: Math.min(Math.round(pct), 97), _ts: Date.now() };
+  if (existIdx !== -1) { items[existIdx] = entry; } else { items.unshift(entry); }
+  // Cap at 20 items
+  _saveContinueItems(items.slice(0, 20));
+  refreshContinueRow();
+}
+
+function _loadContinueItems() {
+  try { return JSON.parse(localStorage.getItem(CONTINUE_KEY + '_items')) || []; } catch { return []; }
+}
+function _saveContinueItems(arr) {
+  try { localStorage.setItem(CONTINUE_KEY + '_items', JSON.stringify(arr)); } catch {}
+}
 
 // ==========================================================================
 // CURATED MULTI-PLATFORM COLLECTIONS (NETFLIX, HOTSTAR, PRIME, HBO MAX, LIVE)
@@ -260,29 +345,29 @@ let hudTimeout = null;
 const PLATFORM_SHOWS = {
   netflix: [
     { id: "66732", title: "Stranger Things", type: "tv", year: "2024", rating: "8.7", seasons: "Season 4", quality: "4K UHD", badge: "NETFLIX ORIGINAL", platformClass: "badge-netflix", platformLabel: "NETFLIX", backdrop: "https://image.tmdb.org/t/p/w1280/9P4IIMYY3HifqeruZq0ZZ9g7YUi.jpg", poster: "https://image.tmdb.org/t/p/w500/uOOtwVbSr4QDjAGIifLDwpb2Pdl.jpg", description: "When a young boy vanishes, a small town uncovers a mystery involving secret experiments, terrifying supernatural forces and one strange little girl." },
-    { id: "93405", title: "Squid Game", type: "tv", year: "2024", rating: "8.4", seasons: "Season 2", quality: "4K UHD", badge: "NETFLIX HIT", platformClass: "badge-netflix", platformLabel: "NETFLIX", backdrop: "https://image.tmdb.org/t/p/w1280/yB2snv0Q6eE5i7VqU8mXk98QW27.jpg", poster: "https://image.tmdb.org/t/p/w500/dDlG1v721qj5j4QZq48r9B9Y6pB.jpg", description: "Hundreds of cash-strapped players accept a strange invitation to compete in children's games with deadly high stakes." },
+    { id: "93405", title: "Squid Game", type: "tv", year: "2024", rating: "8.4", seasons: "Season 2", quality: "4K UHD", badge: "NETFLIX HIT", platformClass: "badge-netflix", platformLabel: "NETFLIX", backdrop: "https://image.tmdb.org/t/p/w1280/2meX1nMdScFOoV4370rqHWKmXhY.jpg", poster: "https://image.tmdb.org/t/p/w500/1QdXdRYfktUSONkl1oD5gc6Be0s.jpg", description: "Hundreds of cash-strapped players accept a strange invitation to compete in children's games with deadly high stakes." },
     { id: "119051", title: "Wednesday", type: "tv", year: "2024", rating: "8.5", seasons: "Season 2", quality: "4K UHD", badge: "NETFLIX TOP 10", platformClass: "badge-netflix", platformLabel: "NETFLIX", backdrop: "https://image.tmdb.org/t/p/w1280/iHSwvRVsRyxpX7FE7GbviaDvgGZ.jpg", poster: "https://image.tmdb.org/t/p/w500/9PFonBhy4cQy7Jz20NpMygczOkv.jpg", description: "A sleuthing, supernaturally infused mystery charting Wednesday Addams' years as a student at Nevermore Academy." },
-    { id: "71446", title: "Money Heist (La Casa de Papel)", type: "tv", year: "2021", rating: "8.2", seasons: "Part 5", quality: "4K UHD", badge: "NETFLIX PHENOMENON", platformClass: "badge-netflix", platformLabel: "NETFLIX", backdrop: "https://image.tmdb.org/t/p/w1280/gFZri2YbFUjiPdslxPkRi1Jav4o.jpg", poster: "https://image.tmdb.org/t/p/w500/reKs8y4m0XgCzILx7PpNTNXO87y.jpg", description: "An unusual group of robbers attempt to carry out the most perfect robbery in Spanish history - stealing 2.4 billion euros from the Royal Mint of Spain." },
-    { id: "71912", title: "The Witcher", type: "tv", year: "2023", rating: "8.0", seasons: "Season 3", quality: "4K UHD", badge: "NETFLIX FANTASY", platformClass: "badge-netflix", platformLabel: "NETFLIX", backdrop: "https://image.tmdb.org/t/p/w1280/foGkTXDipkka0mYs3CGMwYFZw3P.jpg", poster: "https://image.tmdb.org/t/p/w500/cZ0d3rtvXPVvuiX22sP79K3Hmjz.jpg", description: "Geralt of Rivia, a mutated monster-hunter for hire, journeys toward his destiny in a turbulent world where people often prove more wicked than beasts." },
-    { id: "60574", title: "Peaky Blinders", type: "tv", year: "2022", rating: "8.8", seasons: "Series 6", quality: "4K UHD", badge: "CRIME MASTERPIECE", platformClass: "badge-netflix", platformLabel: "NETFLIX", backdrop: "https://image.tmdb.org/t/p/w1280/wiE9doxSlU74KTnfwBqUo72f6Ea.jpg", poster: "https://image.tmdb.org/t/p/w500/vUUqzWa2LnHIVqkaKVlVGkVcZIW.jpg", description: "A notorious gang in 1919 Birmingham, England, is led by the fierce Tommy Shelby, a crime boss set on moving up in the world no matter the cost." },
-    { id: "70523", title: "Dark", type: "tv", year: "2020", rating: "8.7", seasons: "Cycle 3", quality: "4K UHD", badge: "MIND BENDER", platformClass: "badge-netflix", platformLabel: "NETFLIX", backdrop: "https://image.tmdb.org/t/p/w1280/3lBDg3i6nn5R2NKFCJ6oKyU12j5.jpg", poster: "https://image.tmdb.org/t/p/w500/apbrbWs8M9lyOpJYU5WXrpFbk1Z.jpg", description: "A missing child sets four families on a frantic hunt for answers as they unearth a mind-bending mystery that spans three generations." },
-    { id: "42009", title: "Black Mirror", type: "tv", year: "2023", rating: "8.7", seasons: "Season 6", quality: "4K UHD", badge: "DYSTOPIAN SCI-FI", platformClass: "badge-netflix", platformLabel: "NETFLIX", backdrop: "https://image.tmdb.org/t/p/w1280/bSjG4FjK4U8E9NlXfBvGfBw0VzM.jpg", poster: "https://image.tmdb.org/t/p/w500/7RumFH45X0j5KkU1Z3rP3aE1rGz.jpg", description: "A contemporary British speculative fiction anthology series explores a twisted, high-tech near-future where humanity's greatest innovations and darkest instincts collide." }
+    { id: "71446", title: "Money Heist (La Casa de Papel)", type: "tv", year: "2021", rating: "8.2", seasons: "Part 5", quality: "4K UHD", badge: "NETFLIX PHENOMENON", platformClass: "badge-netflix", platformLabel: "NETFLIX", backdrop: "https://image.tmdb.org/t/p/w1280/xGexTKCJDkl12dTW4YCBDXWb1AD.jpg", poster: "https://image.tmdb.org/t/p/w500/reEMJA1uzscCbkpeRJeTT2bjqUp.jpg", description: "An unusual group of robbers attempt to carry out the most perfect robbery in Spanish history - stealing 2.4 billion euros from the Royal Mint of Spain." },
+    { id: "71912", title: "The Witcher", type: "tv", year: "2023", rating: "8.0", seasons: "Season 3", quality: "4K UHD", badge: "NETFLIX FANTASY", platformClass: "badge-netflix", platformLabel: "NETFLIX", backdrop: "https://image.tmdb.org/t/p/w1280/foGkPxpw9h8zln81j63mix5B7m8.jpg", poster: "https://image.tmdb.org/t/p/w500/AoGsDM02UVt0npBA8OvpDcZbaMi.jpg", description: "Geralt of Rivia, a mutated monster-hunter for hire, journeys toward his destiny in a turbulent world where people often prove more wicked than beasts." },
+    { id: "60574", title: "Peaky Blinders", type: "tv", year: "2022", rating: "8.8", seasons: "Series 6", quality: "4K UHD", badge: "CRIME MASTERPIECE", platformClass: "badge-netflix", platformLabel: "NETFLIX", backdrop: "https://image.tmdb.org/t/p/w1280/dzq83RHwQcnP6WGJ6YkenIqeaa5.jpg", poster: "https://image.tmdb.org/t/p/w500/vUUqzWa2LnHIVqkaKVlVGkVcZIW.jpg", description: "A notorious gang in 1919 Birmingham, England, is led by the fierce Tommy Shelby, a crime boss set on moving up in the world no matter the cost." },
+    { id: "70523", title: "Dark", type: "tv", year: "2020", rating: "8.7", seasons: "Cycle 3", quality: "4K UHD", badge: "MIND BENDER", platformClass: "badge-netflix", platformLabel: "NETFLIX", backdrop: "https://image.tmdb.org/t/p/w1280/3jDXL4Xvj3AzDOF6UH1xeyHW8MH.jpg", poster: "https://image.tmdb.org/t/p/w500/wSXJHO9WHLb0aCwvQrtco7vOmWA.jpg", description: "A missing child sets four families on a frantic hunt for answers as they unearth a mind-bending mystery that spans three generations." },
+    { id: "42009", title: "Black Mirror", type: "tv", year: "2023", rating: "8.7", seasons: "Season 6", quality: "4K UHD", badge: "DYSTOPIAN SCI-FI", platformClass: "badge-netflix", platformLabel: "NETFLIX", backdrop: "https://image.tmdb.org/t/p/w1280/dg3OindVAGZBjlT3xYKqIAdukPL.jpg", poster: "https://image.tmdb.org/t/p/w500/seN6rRfN0I6n8iDXjlSMk1QjNcq.jpg", description: "A contemporary British speculative fiction anthology series explores a twisted, high-tech near-future where humanity's greatest innovations and darkest instincts collide." }
   ],
   hotstar: [
-    { id: "84958", title: "Loki", type: "tv", year: "2023", rating: "8.2", seasons: "Season 2", quality: "4K UHD", badge: "DISNEY+ EXCLUSIVE", platformClass: "badge-hotstar", platformLabel: "HOTSTAR", backdrop: "https://image.tmdb.org/t/p/w1280/9yBVqNruk6Sp9BJuWDI5DnuOOj8.jpg", poster: "https://image.tmdb.org/t/p/w500/voHUmlvjysv5vbt5ENU6vD9vlKD.jpg", description: "The mercurial villain Loki resumes his role as the God of Mischief in a new series that takes place after the events of 'Avengers: Endgame'." },
+    { id: "84958", title: "Loki", type: "tv", year: "2023", rating: "8.2", seasons: "Season 2", quality: "4K UHD", badge: "DISNEY+ EXCLUSIVE", platformClass: "badge-hotstar", platformLabel: "HOTSTAR", backdrop: "https://image.tmdb.org/t/p/w1280/q3jHCb4dMfYF6ojikKuHd6LscxC.jpg", poster: "https://image.tmdb.org/t/p/w500/kEl2t3OhXc3Zb9FBh1AuYzRTgZp.jpg", description: "The mercurial villain Loki resumes his role as the God of Mischief in a new series that takes place after the events of 'Avengers: Endgame'." },
     { id: "126308", title: "Shōgun", type: "tv", year: "2024", rating: "8.8", seasons: "Season 1", quality: "4K UHD", badge: "18 EMMY AWARDS", platformClass: "badge-hotstar", platformLabel: "HOTSTAR", backdrop: "https://image.tmdb.org/t/p/w1280/bwSmgmd90hCWwqOKQYTEraeOZhJ.jpg", poster: "https://image.tmdb.org/t/p/w500/7O4iVfOMQmdCSxhOg1WnzG1AgYT.jpg", description: "When a mysterious European ship is found marooned in a nearby fishing village, Lord Yoshii Toranaga discovers secrets that could tip the scales of power." },
-    { id: "82856", title: "The Mandalorian", type: "tv", year: "2023", rating: "8.6", seasons: "Season 3", quality: "4K UHD", badge: "STAR WARS ORIGINAL", platformClass: "badge-hotstar", platformLabel: "HOTSTAR", backdrop: "https://image.tmdb.org/t/p/w1280/9ijMGl8qluz1GkBYt4yU7ysmiAI.jpg", poster: "https://image.tmdb.org/t/p/w500/eU1i6eHXlzMOlEq0ku1R07Y8vpH.jpg", description: "After the fall of the Galactic Empire, a lone gunfighter makes his way through the outer reaches of the lawless galaxy." },
-    { id: "85271", title: "WandaVision", type: "tv", year: "2021", rating: "8.0", seasons: "Limited Series", quality: "4K UHD", badge: "MARVEL STUDIOS", platformClass: "badge-hotstar", platformLabel: "HOTSTAR", backdrop: "https://image.tmdb.org/t/p/w1280/57vVjteucIF3Lcv4n6T0zyBsQxw.jpg", poster: "https://image.tmdb.org/t/p/w500/glKDss7SrqKPh8FLxnM9G9PzbNW.jpg", description: "Wanda Maximoff and Vision—two super-powered beings living idealized suburban lives—begin to suspect that everything is not as it seems." },
-    { id: "92749", title: "Moon Knight", type: "tv", year: "2022", rating: "7.7", seasons: "Season 1", quality: "4K UHD", badge: "MARVEL ORIGINAL", platformClass: "badge-hotstar", platformLabel: "HOTSTAR", backdrop: "https://image.tmdb.org/t/p/w1280/14QbnygCuTO0vl7CAFmPf1fgZfV.jpg", poster: "https://image.tmdb.org/t/p/w500/x6FsYvt33846G729muylUg4029B.jpg", description: "Steven Grant discovers he's been granted the powers of an Egyptian moon god, but quickly finds these new abilities can be both a blessing and a curse." },
-    { id: "98606", title: "Daredevil: Born Again", type: "tv", year: "2025", rating: "8.6", seasons: "Upcoming", quality: "4K UHD", badge: "MARVEL STUDIOS", platformClass: "badge-hotstar", platformLabel: "HOTSTAR", backdrop: "https://image.tmdb.org/t/p/w1280/2u0B9ZJd9rL4pZpP9ZlQ0X7E3A9.jpg", poster: "https://image.tmdb.org/t/p/w500/eNlP644Y4Fv2R6G0e9m0h1B9F5D.jpg", description: "Matt Murdock and Wilson Fisk try to leave behind their darker personas, but their pasts quickly catch up with them in Hell's Kitchen." },
-    { id: "105971", title: "Star Wars: The Bad Batch", type: "tv", year: "2024", rating: "8.2", seasons: "Season 3", quality: "4K UHD", badge: "LUCASFILM", platformClass: "badge-hotstar", platformLabel: "HOTSTAR", backdrop: "https://image.tmdb.org/t/p/w1280/sjx6zjQI29yXYCDJHgx2E2x2w6n.jpg", poster: "https://image.tmdb.org/t/p/w500/5R1V4xYQ3L5oN9f5Yg2Z0g6F3mF.jpg", description: "The 'Bad Batch' of elite and experimental clones navigate their way through an evolving galaxy in the immediate aftermath of the Clone Wars." }
+    { id: "82856", title: "The Mandalorian", type: "tv", year: "2023", rating: "8.6", seasons: "Season 3", quality: "4K UHD", badge: "STAR WARS ORIGINAL", platformClass: "badge-hotstar", platformLabel: "HOTSTAR", backdrop: "https://image.tmdb.org/t/p/w1280/9zcbqSxdsRMZWHYtyCd1nXPr2xq.jpg", poster: "https://image.tmdb.org/t/p/w500/sWgBv7LV2PRoQgkxwlibdGXKz1S.jpg", description: "After the fall of the Galactic Empire, a lone gunfighter makes his way through the outer reaches of the lawless galaxy." },
+    { id: "85271", title: "WandaVision", type: "tv", year: "2021", rating: "8.0", seasons: "Limited Series", quality: "4K UHD", badge: "MARVEL STUDIOS", platformClass: "badge-hotstar", platformLabel: "HOTSTAR", backdrop: "https://image.tmdb.org/t/p/w1280/cq62fLH3vwOmiaLKMqkDI86tPtH.jpg", poster: "https://image.tmdb.org/t/p/w500/ijWWwINc8h71NQ8j1LTJMFSj5wr.jpg", description: "Wanda Maximoff and Vision—two super-powered beings living idealized suburban lives—begin to suspect that everything is not as it seems." },
+    { id: "92749", title: "Moon Knight", type: "tv", year: "2022", rating: "7.7", seasons: "Season 1", quality: "4K UHD", badge: "MARVEL ORIGINAL", platformClass: "badge-hotstar", platformLabel: "HOTSTAR", backdrop: "https://image.tmdb.org/t/p/w1280/1uegR4uAxRxiMyX4nQnpzbXhrTw.jpg", poster: "https://image.tmdb.org/t/p/w500/9K3lbMf8TKvL9xGEbzi7TggWCNQ.jpg", description: "Steven Grant discovers he's been granted the powers of an Egyptian moon god, but quickly finds these new abilities can be both a blessing and a curse." },
+    { id: "202555", title: "Daredevil: Born Again", type: "tv", year: "2025", rating: "8.6", seasons: "Upcoming", quality: "4K UHD", badge: "MARVEL STUDIOS", platformClass: "badge-hotstar", platformLabel: "HOTSTAR", backdrop: "https://image.tmdb.org/t/p/w1280/qrTAc0ZtQ859Qu5O8cixJzNJpQs.jpg", poster: "https://image.tmdb.org/t/p/w500/xDUoAsU8lQHOOoRkFiBuarmACDN.jpg", description: "Matt Murdock and Wilson Fisk try to leave behind their darker personas, but their pasts quickly catch up with them in Hell's Kitchen." },
+    { id: "105971", title: "Star Wars: The Bad Batch", type: "tv", year: "2024", rating: "8.2", seasons: "Season 3", quality: "4K UHD", badge: "LUCASFILM", platformClass: "badge-hotstar", platformLabel: "HOTSTAR", backdrop: "https://image.tmdb.org/t/p/w1280/sjxtIUCWR74yPPcZFfTsToepfWm.jpg", poster: "https://image.tmdb.org/t/p/w500/5mHus672nuinyaE0FtqvD0AddcY.jpg", description: "The 'Bad Batch' of elite and experimental clones navigate their way through an evolving galaxy in the immediate aftermath of the Clone Wars." }
   ],
   max: [
-    { id: "94997", title: "House of the Dragon", type: "tv", year: "2024", rating: "8.4", seasons: "Season 2", quality: "4K UHD", badge: "HBO ORIGINAL", platformClass: "badge-max", platformLabel: "HBO MAX", backdrop: "https://image.tmdb.org/t/p/w1280/etj5CuMuam3hGQnQ2JjPR0BEcd8.jpg", poster: "https://image.tmdb.org/t/p/w500/t9Xke5llnqaR0AcPfVA9GKaGh8z.jpg", description: "The Targaryen dynasty is at the absolute apex of its power, with more than 15 dragons under their yoke. Most empires crumble from such heights." },
-    { id: "100088", title: "The Last of Us", type: "tv", year: "2023", rating: "8.8", seasons: "Season 1", quality: "4K UHD", badge: "HBO MASTERPIECE", platformClass: "badge-max", platformLabel: "HBO MAX", backdrop: "https://image.tmdb.org/t/p/w1280/uDgy6hyPd82kOHh6I95FLtLnj6p.jpg", poster: "https://image.tmdb.org/t/p/w500/uKvVjHNqB5VmOrdxqAt2V7JMrqi.jpg", description: "Twenty years after modern civilization has been destroyed, Joel is hired to smuggle Ellie, a 14-year-old girl, out of an oppressive quarantine zone." },
-    { id: "1399", title: "Game of Thrones", type: "tv", year: "2019", rating: "9.2", seasons: "Season 8", quality: "4K UHD", badge: "GLOBAL PHENOMENON", platformClass: "badge-max", platformLabel: "HBO MAX", backdrop: "https://image.tmdb.org/t/p/w1280/2OMB0ynKlyIenMJWI2Dy9IWT4c.jpg", poster: "https://image.tmdb.org/t/p/w500/1XS1oqL89opfnbLl8WnZY1O1uJx.jpg", description: "Seven noble families fight for control of the mythical land of Westeros. Friction between the houses leads to full-scale war." },
-    { id: "76331", title: "Succession", type: "tv", year: "2023", rating: "8.9", seasons: "Season 4", quality: "4K UHD", badge: "EMMY WINNER", platformClass: "badge-max", platformLabel: "HBO MAX", backdrop: "https://image.tmdb.org/t/p/w1280/cKZG4tM3tQZ5zWvj8v6q9m6a5sK.jpg", poster: "https://image.tmdb.org/t/p/w500/7udW4bM6Rk3A6K2r8f0oV1c1A2b.jpg", description: "The Roy family is known for controlling the biggest media and entertainment company in the world. However, their world changes when their aging father steps down." },
-    { id: "85552", title: "Euphoria", type: "tv", year: "2022", rating: "8.3", seasons: "Season 2", quality: "4K UHD", badge: "HBO DRAMA", platformClass: "badge-max", platformLabel: "HBO MAX", backdrop: "https://image.tmdb.org/t/p/w1280/9KnIzp2U6Z0v6YvY8w5yK0y7K6Z.jpg", poster: "https://image.tmdb.org/t/p/w500/jtnfNzqZwN4E32Fzz4WODIRWTa3.jpg", description: "A group of high school students navigate love and friendships in a world of drugs, sex, trauma and social media." }
+    { id: "94997", title: "House of the Dragon", type: "tv", year: "2024", rating: "8.4", seasons: "Season 2", quality: "4K UHD", badge: "HBO ORIGINAL", platformClass: "badge-max", platformLabel: "HBO MAX", backdrop: "https://image.tmdb.org/t/p/w1280/577eXC8wFQT0eUrJcgznSiFPRmk.jpg", poster: "https://image.tmdb.org/t/p/w500/7V0Ebks0GgpKvQ7QbLAIdX5dos4.jpg", description: "The Targaryen dynasty is at the absolute apex of its power, with more than 15 dragons under their yoke. Most empires crumble from such heights." },
+    { id: "100088", title: "The Last of Us", type: "tv", year: "2023", rating: "8.8", seasons: "Season 1", quality: "4K UHD", badge: "HBO MASTERPIECE", platformClass: "badge-max", platformLabel: "HBO MAX", backdrop: "https://image.tmdb.org/t/p/w1280/lY2DhbA7Hy44fAKddr06UrXWWaQ.jpg", poster: "https://image.tmdb.org/t/p/w500/dmo6TYuuJgaYinXBPjrgG9mB5od.jpg", description: "Twenty years after modern civilization has been destroyed, Joel is hired to smuggle Ellie, a 14-year-old girl, out of an oppressive quarantine zone." },
+    { id: "1399", title: "Game of Thrones", type: "tv", year: "2019", rating: "9.2", seasons: "Season 8", quality: "4K UHD", badge: "GLOBAL PHENOMENON", platformClass: "badge-max", platformLabel: "HBO MAX", backdrop: "https://image.tmdb.org/t/p/w1280/zZqpAXxVSBtxV9qPBcscfXBcL2w.jpg", poster: "https://image.tmdb.org/t/p/w500/1XS1oqL89opfnbLl8WnZY1O1uJx.jpg", description: "Seven noble families fight for control of the mythical land of Westeros. Friction between the houses leads to full-scale war." },
+    { id: "76331", title: "Succession", type: "tv", year: "2023", rating: "8.9", seasons: "Season 4", quality: "4K UHD", badge: "EMMY WINNER", platformClass: "badge-max", platformLabel: "HBO MAX", backdrop: "https://image.tmdb.org/t/p/w1280/d87JXX3DLkRJMfm5StCmmnmhHuX.jpg", poster: "https://image.tmdb.org/t/p/w500/z0XiwdrCQ9yVIr4O0pxzaAYRxdW.jpg", description: "The Roy family is known for controlling the biggest media and entertainment company in the world. However, their world changes when their aging father steps down." },
+    { id: "85552", title: "Euphoria", type: "tv", year: "2022", rating: "8.3", seasons: "Season 2", quality: "4K UHD", badge: "HBO DRAMA", platformClass: "badge-max", platformLabel: "HBO MAX", backdrop: "https://image.tmdb.org/t/p/w1280/mez2Z3WqlPKNXpi7mWoiiE5guE9.jpg", poster: "https://image.tmdb.org/t/p/w500/aJrG7OkoTMPWG5c8opz8a93AZPY.jpg", description: "A group of high school students navigate love and friendships in a world of drugs, sex, trauma and social media." }
   ],
   liveChannels: [
     { id: "star-sports-1", title: "Star Sports 1 HD", type: "live", quality: "1080p 60FPS", category: "Cricket • Premier League", badge: "LIVE NOW", backdrop: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=640&q=80", platformClass: "badge-hotstar", platformLabel: "HOTSTAR" },
@@ -318,7 +403,7 @@ const FALLBACK_FRAMEX_RAILS = {
   ],
   popular_tv: [
     { id: "1396", title: "Breaking Bad", type: "tv", rating: "9.5", year: "2008", poster: "https://image.tmdb.org/t/p/w500/ggFHVNu6YYI5L9pCfOacjizRGt.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg", overview: "A high school chemistry teacher diagnosed with terminal lung cancer turns to manufacturing methamphetamine." },
-    { id: "106379", title: "Fallout", type: "tv", rating: "8.6", year: "2024", poster: "https://image.tmdb.org/t/p/w500/ansA66s6e0q0sV4n1A6m6q0p9.jpg", backdrop: "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=1280&q=80", overview: "In a future, post-apocalyptic Los Angeles, citizens must live in underground bunkers to protect themselves." },
+    { id: "106379", title: "Fallout", type: "tv", rating: "8.6", year: "2024", poster: "https://image.tmdb.org/t/p/w500/c15BtJxCXMrISLVmysdsnZUPQft.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/coaPCIqQBPUZsOnJcWZxhaORcDT.jpg", overview: "In a future, post-apocalyptic Los Angeles, citizens must live in underground bunkers to protect themselves." },
     { id: "66732", title: "Stranger Things", type: "tv", rating: "8.7", year: "2016", poster: "https://image.tmdb.org/t/p/w500/49WJfeN0moxb9IPfGn8AIqMGskD.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/56v2KjUmLeVoVnBsw19vWkn9xuv.jpg", overview: "When a young boy vanishes, a small town uncovers a mystery involving secret experiments." },
     { id: "94997", title: "House of the Dragon", type: "tv", rating: "8.4", year: "2022", poster: "https://image.tmdb.org/t/p/w500/1X4h40fcB4WWUmIBK0auT4zRBAV.jpg", backdrop: "https://image.tmdb.org/t/p/w1280/etj5CuMuam3hD6MfP2bgji5gW2r.jpg", overview: "The Targaryen dynasty is at the absolute apex of its power, with more than 15 dragons under their yoke." }
   ],
@@ -365,12 +450,36 @@ document.addEventListener("DOMContentLoaded", () => {
   setupTVNavigation();
   setupPlayerHudInteraction();
   initSliderArrows();
+  initContinueWatchingRow();
+  initMyListRow();
+  initBillboardAutoRotate();
+  setupKeyboardShortcuts();
+  setupPwaInstall();
 
   // Fetch all live categories from backend/proxy
   loadLiveFrameXCatalog();
+
+  // Start continuous infinite discover catalog on home page
+  initHomeEndlessCatalog("all", false);
 });
 
+function renderSkeletons(scroller, count = 6) {
+  const el = document.getElementById(scroller);
+  if (!el) return;
+  el.innerHTML = Array(count).fill(0).map(() => `
+    <div class="skeleton-card">
+      <div class="skeleton-thumb"></div>
+      <div class="skeleton-info">
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line short"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
 function renderInitialCatalog() {
+  // Show skeleton placeholders immediately for main rows
+  ['scrollerTrending','scrollerPopularMovies','scrollerPopularTV','scrollerAnime','scrollerNewReleases','scrollerAction','scrollerComedy'].forEach(id => renderSkeletons(id));
   const trending = FALLBACK_FRAMEX_RAILS.trending_movies.map(d => formatSearchResult(d, "badge-prime", "MOVIE"));
   CATEGORY_ITEMS.trending = trending;
   renderRail("scrollerTrending", trending);
@@ -477,7 +586,8 @@ const CATEGORY_META = {
   live: { title: "Live Channels & Sports", subtitle: "24/7 sports feeds, live cricket, football, and news networks", tag: "LIVE CHANNELS" },
   all: { title: "All Shows & Movies", subtitle: "Complete catalog aggregated across Netflix, Hotstar, Prime, HBO Max & Box Office", tag: "COMPLETE CATALOG" },
   all_movies: { title: "All Featured Movies", subtitle: "Every full-length feature presentation and blockbuster across platforms", tag: "FEATURE MOVIES" },
-  all_tv: { title: "All TV Series", subtitle: "Every episodic series, mini-series, and anime across all networks", tag: "TV SERIES" }
+  all_tv: { title: "All TV Series", subtitle: "Every episodic series, mini-series, and anime across all networks", tag: "TV SERIES" },
+  mylist: { title: "My Watchlist", subtitle: "All titles you've saved to watch later", tag: "MY LIST" }
 };
 
 let currentViewAllItems = [];
@@ -694,75 +804,57 @@ async function fetchLivePlatformRows() {
 // VIEW ALL - FULL-PAGE GRID LISTING ENGINE
 // ==========================================================================
 
-function openViewAllCategory(catKey) {
-  activeViewAllCategory = catKey || "all";
-  activeViewAllFilter = "all";
+let viewAllCurrentCategory = "all";
+let viewAllCurrentFilter = "all";
+let viewAllCurrentPage = 1;
+let viewAllIsLoading = false;
+let viewAllHasMore = true;
+let viewAllItems = [];
+let viewAllSeenIds = new Set();
+let viewAllSortBy = "featured";
+let isViewAllInfiniteScrollAttached = false;
 
-  let items = [];
-  if (catKey === "all") {
-    // Union of all categories deduplicated by ID
-    const pool = [
-      ...(CATEGORY_ITEMS.trending || []),
-      ...(CATEGORY_ITEMS.popular_movies || []),
-      ...(CATEGORY_ITEMS.popular_tv || []),
-      ...(CATEGORY_ITEMS.netflix || []),
-      ...(CATEGORY_ITEMS.hotstar || []),
-      ...(CATEGORY_ITEMS.originals || []),
-      ...(CATEGORY_ITEMS.max || []),
-      ...(CATEGORY_ITEMS.anime || []),
-      ...(CATEGORY_ITEMS.new_releases || []),
-      ...(CATEGORY_ITEMS.action || []),
-      ...(CATEGORY_ITEMS.comedy || [])
-    ];
-    const seen = new Set();
-    pool.forEach(item => {
-      if (item && item.id && !seen.has(item.id)) {
-        seen.add(item.id);
-        items.push(item);
-      }
-    });
-  } else if (catKey === "all_movies") {
-    const pool = [
-      ...(CATEGORY_ITEMS.trending || []),
-      ...(CATEGORY_ITEMS.popular_movies || []),
-      ...(CATEGORY_ITEMS.new_releases || []),
-      ...(CATEGORY_ITEMS.action || []),
-      ...(CATEGORY_ITEMS.comedy || [])
-    ];
-    const seen = new Set();
-    pool.forEach(item => {
-      if (item && item.id && item.type !== "tv" && !seen.has(item.id)) {
-        seen.add(item.id);
-        items.push(item);
-      }
-    });
-  } else if (catKey === "all_tv") {
-    const pool = [
-      ...(CATEGORY_ITEMS.popular_tv || []),
-      ...(CATEGORY_ITEMS.netflix || []),
-      ...(CATEGORY_ITEMS.hotstar || []),
-      ...(CATEGORY_ITEMS.originals || []),
-      ...(CATEGORY_ITEMS.max || []),
-      ...(CATEGORY_ITEMS.anime || [])
-    ];
-    const seen = new Set();
-    pool.forEach(item => {
-      if (item && item.id && item.type === "tv" && !seen.has(item.id)) {
-        seen.add(item.id);
-        items.push(item);
-      }
-    });
-  } else {
-    items = (CATEGORY_ITEMS[catKey] || []).slice();
+function getInitialLocalPool(catKey) {
+  if (catKey === "trending") return (CATEGORY_ITEMS.trending || []).slice();
+  if (catKey === "popular_movies") return (CATEGORY_ITEMS.popular_movies || []).slice();
+  if (catKey === "popular_tv") return (CATEGORY_ITEMS.popular_tv || []).slice();
+  if (catKey === "netflix") return (PLATFORM_SHOWS.netflix || []).slice();
+  if (catKey === "hotstar") return (PLATFORM_SHOWS.hotstar || []).slice();
+  if (catKey === "originals") return (CATALOG || []).slice();
+  if (catKey === "max") return (PLATFORM_SHOWS.max || []).slice();
+  if (catKey === "anime") return (CATEGORY_ITEMS.anime || []).slice();
+  return getAllKnownItems();
+}
+
+function getViewAllEndpoint(catKey, filter, page) {
+  if (catKey === "trending") {
+    return `/api/trending?page=${page}`;
   }
+  if (filter === "anime" || catKey === "anime") {
+    return `/api/anime?page=${page}`;
+  }
+  if (filter === "movie" || catKey === "popular_movies" || catKey === "all_movies") {
+    return `/api/movies?page=${page}`;
+  }
+  if (filter === "tv" || catKey === "popular_tv" || catKey === "all_tv") {
+    return `/api/tv?page=${page}`;
+  }
+  return `/api/discover?page=${page}`;
+}
 
-  currentViewAllItems = items.slice();
+let viewAllObserver = null;
 
-  const meta = CATEGORY_META[catKey] || {
-    title: "Browse Catalog",
-    subtitle: "Explore all titles currently streaming",
-    tag: "CATALOG"
-  };
+async function openViewAllCategory(catKey = "all") {
+  viewAllCurrentCategory = catKey;
+  viewAllCurrentFilter = (catKey === "popular_movies" || catKey === "all_movies") ? "movie" :
+                         (catKey === "popular_tv" || catKey === "all_tv") ? "tv" :
+                         (catKey === "anime") ? "anime" : "all";
+  viewAllCurrentPage = 1;
+  viewAllIsLoading = false;
+  viewAllHasMore = true;
+  viewAllItems = [];
+  viewAllSeenIds = new Set();
+  viewAllSortBy = "featured";
 
   const page = document.getElementById("viewAllPage");
   const hero = document.getElementById("heroBillboard");
@@ -774,30 +866,251 @@ function openViewAllCategory(catKey) {
   if (channels) channels.style.display = "none";
   if (content) content.style.display = "none";
   if (searchRow) searchRow.style.display = "none";
-
   if (page) page.style.display = "flex";
+
+  const meta = CATEGORY_META[catKey] || {
+    title: "All Shows & Movies",
+    subtitle: "Complete streaming catalog aggregated across all major platforms",
+    tag: "COMPLETE CATALOG"
+  };
 
   const titleEl = document.getElementById("viewAllTitle");
   const countEl = document.getElementById("viewAllCount");
   const subEl = document.getElementById("viewAllSubtitle");
   const tagEl = document.getElementById("viewAllTag");
+  const loadMoreBtn = document.getElementById("viewAllLoadMoreBtn");
 
   if (titleEl) titleEl.innerText = meta.title;
-  if (countEl) countEl.innerText = items.length;
   if (subEl) subEl.innerText = meta.subtitle;
   if (tagEl) tagEl.innerText = meta.tag;
 
-  // Reset tab active state
+  let catalogMaxLabel = "50,000+ Titles";
+  if (viewAllCurrentFilter === "movie") {
+    catalogMaxLabel = "20,000+ Movies";
+  } else if (viewAllCurrentFilter === "tv") {
+    catalogMaxLabel = "20,000+ TV Series";
+  } else if (viewAllCurrentFilter === "anime") {
+    catalogMaxLabel = "5,000+ Anime";
+  }
+
+  if (countEl) countEl.innerText = `Connecting to ${catalogMaxLabel}…`;
+  if (loadMoreBtn) loadMoreBtn.innerText = `Load Next 50 Titles (${catalogMaxLabel} Available) ▾`;
+
   document.querySelectorAll(".viewall-filter-btn").forEach(btn => {
-    btn.classList.toggle("active", btn.dataset.filter === "all");
+    btn.classList.toggle("active", btn.dataset.filter === viewAllCurrentFilter);
   });
 
-  // Reset sort select
   const select = document.getElementById("viewAllSortSelect");
   if (select) select.value = "featured";
 
-  renderViewAllGrid(items);
+  if (catKey === "mylist") {
+    const list = getAllKnownItems().filter(item => watchlist.has(item.id));
+    viewAllItems = list;
+    viewAllHasMore = false;
+    renderViewAllGrid(list);
+    if (countEl) countEl.innerText = `${list.length} Titles`;
+    if (loadMoreBtn) loadMoreBtn.style.display = "none";
+    window.scrollTo({ top: 0, behavior: "instant" });
+    return;
+  }
+  if (loadMoreBtn) loadMoreBtn.style.display = "block";
+
+  // For specific curated platforms (netflix, hotstar, max, originals, live), pre-seed with curated items
+  const isCuratedChannel = ['netflix', 'hotstar', 'max', 'originals', 'live'].includes(catKey);
+  if (isCuratedChannel) {
+    const initialPool = getInitialLocalPool(catKey);
+    initialPool.forEach(item => {
+      if (item && item.id && !viewAllSeenIds.has(item.id)) {
+        viewAllSeenIds.add(item.id);
+        viewAllItems.push(item);
+      }
+    });
+  }
+
+  const grid = document.getElementById("viewAllGrid");
+  if (viewAllItems.length > 0) {
+    renderViewAllGrid(viewAllItems);
+    if (countEl) countEl.innerText = `${viewAllItems.length} of ${catalogMaxLabel}`;
+  } else {
+    if (grid) {
+      grid.innerHTML = Array(18).fill(0).map(() => `
+        <div class="skeleton-card" style="width: 100%;">
+          <div class="skeleton-thumb" style="height: 250px;"></div>
+          <div class="skeleton-info">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line short"></div>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
   window.scrollTo({ top: 0, behavior: "instant" });
+  setupViewAllInfiniteScroll();
+
+  // Load first 3 live pages from backend (54+ items) in parallel!
+  await loadNextViewAllBatch(3);
+}
+
+async function loadNextViewAllBatch(batchCount = 3) {
+  if (viewAllIsLoading || !viewAllHasMore) return;
+  viewAllIsLoading = true;
+
+  const loader = document.getElementById("viewAllLoader");
+  const loadMoreBtn = document.getElementById("viewAllLoadMoreBtn");
+  if (loader) loader.style.display = "flex";
+  if (loadMoreBtn) {
+    loadMoreBtn.disabled = true;
+    loadMoreBtn.innerText = "Loading titles from catalog…";
+  }
+
+  const startPage = viewAllCurrentPage;
+  const pagePromises = [];
+  for (let i = 0; i < batchCount; i++) {
+    const pageNum = startPage + i;
+    const url = getViewAllEndpoint(viewAllCurrentCategory, viewAllCurrentFilter, pageNum);
+    pagePromises.push(
+      fetchApiJson(url).then(data => ({ pageNum, data })).catch(err => {
+        console.warn(`[ViewAll] Page ${pageNum} error:`, err);
+        return { pageNum, data: null };
+      })
+    );
+  }
+
+  try {
+    const settled = await Promise.all(pagePromises);
+    const grid = document.getElementById("viewAllGrid");
+    const countEl = document.getElementById("viewAllCount");
+
+    // Remove any leftover skeletons
+    if (grid) {
+      grid.querySelectorAll(".skeleton-card").forEach(s => s.remove());
+    }
+
+    let addedCount = 0;
+    for (const res of settled) {
+      if (!res.data) continue;
+      const rawResults = extractRailResults(res.data);
+      if (rawResults && rawResults.length > 0) {
+        rawResults.forEach(raw => {
+          const item = formatSearchResult(raw, raw.type === "tv" ? "badge-netflix" : "badge-prime", raw.type === "tv" ? "TV" : "MOVIE");
+          if (item && item.id && !viewAllSeenIds.has(item.id)) {
+            viewAllSeenIds.add(item.id);
+            viewAllItems.push(item);
+            addedCount++;
+
+            // Check if matches active filter
+            const matchesFilter =
+              viewAllCurrentFilter === "all" ||
+              (viewAllCurrentFilter === "movie" && item.type !== "tv") ||
+              (viewAllCurrentFilter === "tv" && item.type === "tv") ||
+              (viewAllCurrentFilter === "anime");
+
+            if (matchesFilter && grid) {
+              grid.appendChild(createStandardCard(item));
+            }
+          }
+        });
+      }
+
+      if (res.data.totalPages && res.pageNum >= res.data.totalPages) {
+        viewAllHasMore = false;
+      }
+    }
+
+    viewAllCurrentPage += batchCount;
+
+    // Update dynamic counter badge
+    const visibleCount = grid ? grid.querySelectorAll(".movie-card").length : viewAllItems.length;
+    let catalogMaxLabel = "50,000+ Titles";
+    let catalogTypeLabel = "Titles";
+    if (viewAllCurrentFilter === "movie") {
+      catalogMaxLabel = "20,000+ Movies";
+      catalogTypeLabel = "Movies";
+    } else if (viewAllCurrentFilter === "tv") {
+      catalogMaxLabel = "20,000+ TV Series";
+      catalogTypeLabel = "TV Series";
+    } else if (viewAllCurrentFilter === "anime") {
+      catalogMaxLabel = "5,000+ Anime";
+      catalogTypeLabel = "Anime";
+    }
+
+    if (countEl) {
+      countEl.innerText = `${visibleCount.toLocaleString()} of ${catalogMaxLabel}`;
+    }
+
+    if (loadMoreBtn) {
+      loadMoreBtn.disabled = false;
+      if (viewAllHasMore) {
+        loadMoreBtn.innerText = `Load Next 50 ${catalogTypeLabel} (${catalogMaxLabel} Available) ▾`;
+      } else {
+        loadMoreBtn.innerText = `All ${catalogTypeLabel} Catalog Loaded (${visibleCount.toLocaleString()} Titles)`;
+      }
+    }
+
+    // Auto-fill if screen is large and not enough content yet to scroll
+    if (viewAllHasMore && viewAllItems.length < 50 && document.documentElement.scrollHeight <= window.innerHeight + 300) {
+      setTimeout(() => loadNextViewAllBatch(2), 200);
+    }
+  } catch (err) {
+    console.warn("[ViewAll] Batch fetch error:", err);
+  } finally {
+    viewAllIsLoading = false;
+    if (loader) loader.style.display = "none";
+    if (loadMoreBtn && loadMoreBtn.disabled) loadMoreBtn.disabled = false;
+  }
+}
+window.loadNextViewAllBatch = loadNextViewAllBatch;
+
+// Single-page backward compatibility alias
+async function loadNextViewAllPage() {
+  return loadNextViewAllBatch(2);
+}
+
+function setupViewAllInfiniteScroll() {
+  const loader = document.getElementById("viewAllLoader");
+  const loadMoreBtn = document.getElementById("viewAllLoadMoreBtn");
+
+  // IntersectionObserver triggers load before user even hits the bottom!
+  if (!viewAllObserver && "IntersectionObserver" in window) {
+    viewAllObserver = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          const page = document.getElementById("viewAllPage");
+          if (page && page.style.display !== "none" && !viewAllIsLoading && viewAllHasMore) {
+            loadNextViewAllBatch(2);
+          }
+        }
+      }
+    }, {
+      root: null,
+      rootMargin: "1000px 0px", // Trigger 1000px ahead!
+      threshold: 0
+    });
+  }
+
+  if (viewAllObserver) {
+    if (loader) viewAllObserver.observe(loader);
+    if (loadMoreBtn) viewAllObserver.observe(loadMoreBtn);
+  }
+
+  if (isViewAllInfiniteScrollAttached) return;
+  isViewAllInfiniteScrollAttached = true;
+
+  window.addEventListener("scroll", () => {
+    const page = document.getElementById("viewAllPage");
+    if (!page || page.style.display === "none") return;
+
+    const scrollBottom = window.innerHeight + window.scrollY;
+    const documentHeight = document.documentElement.scrollHeight;
+
+    // Trigger next page load when 900px from bottom
+    if (scrollBottom >= documentHeight - 900) {
+      if (!viewAllIsLoading && viewAllHasMore) {
+        loadNextViewAllBatch(2);
+      }
+    }
+  }, { passive: true });
 }
 
 function closeViewAllPage() {
@@ -833,47 +1146,100 @@ function renderViewAllGrid(items) {
   });
 }
 
-function filterViewAllType(type) {
-  activeViewAllFilter = type;
+async function filterViewAllType(type) {
+  viewAllCurrentFilter = type;
   document.querySelectorAll(".viewall-filter-btn").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.filter === type);
   });
 
-  let filtered = currentViewAllItems.slice();
+  const titleEl = document.getElementById("viewAllTitle");
+  const countEl = document.getElementById("viewAllCount");
+  const subEl = document.getElementById("viewAllSubtitle");
+  const tagEl = document.getElementById("viewAllTag");
+  const loadMoreBtn = document.getElementById("viewAllLoadMoreBtn");
+
   if (type === "movie") {
-    filtered = filtered.filter(i => i.type !== "tv");
+    if (titleEl) titleEl.innerText = "All Movies & Blockbusters";
+    if (tagEl) tagEl.innerText = "20,000+ MOVIES";
+    if (subEl) subEl.innerText = "Endless cinema catalog — stream 20,000+ feature films, Hollywood hits & classics";
+    if (countEl) countEl.innerText = "Loading 20,000+ Movies…";
+    if (loadMoreBtn) loadMoreBtn.innerText = "Load Next 50 Movies (20,000+ Available) ▾";
   } else if (type === "tv") {
-    filtered = filtered.filter(i => i.type === "tv");
+    if (titleEl) titleEl.innerText = "All TV Shows & Web Series";
+    if (tagEl) tagEl.innerText = "20,000+ TV SERIES";
+    if (subEl) subEl.innerText = "Endless episodic library — binge 20,000+ complete seasons, series & dramas";
+    if (countEl) countEl.innerText = "Loading 20,000+ TV Series…";
+    if (loadMoreBtn) loadMoreBtn.innerText = "Load Next 50 Series (20,000+ Available) ▾";
+  } else if (type === "anime") {
+    if (titleEl) titleEl.innerText = "All Anime Series & Movies";
+    if (tagEl) tagEl.innerText = "5,000+ ANIME SERIES";
+    if (subEl) subEl.innerText = "Endless anime catalog — thousands of episodes, legendary shonen franchises & movies";
+    if (countEl) countEl.innerText = "Loading 5,000+ Anime…";
+    if (loadMoreBtn) loadMoreBtn.innerText = "Load Next Anime (5,000+ Available) ▾";
+  } else {
+    if (titleEl) titleEl.innerText = "Complete Streaming Catalog";
+    if (tagEl) tagEl.innerText = "50,000+ TITLES";
+    if (subEl) subEl.innerText = "Continuous streaming catalog — browse 50,000+ movies, series & anime titles across all platforms";
+    if (countEl) countEl.innerText = "Loading 50,000+ Titles…";
+    if (loadMoreBtn) loadMoreBtn.innerText = "Load Next 50 Titles (50,000+ Available) ▾";
   }
 
-  const countEl = document.getElementById("viewAllCount");
-  if (countEl) countEl.innerText = filtered.length;
+  // Reset pagination state for selected filter
+  viewAllCurrentPage = 1;
+  viewAllHasMore = true;
+  viewAllIsLoading = false;
+  viewAllSeenIds = new Set();
+  viewAllItems = [];
 
-  renderViewAllGrid(filtered);
+  const grid = document.getElementById("viewAllGrid");
+  // Immediate shimmering skeletons while loading
+  if (grid) {
+    grid.innerHTML = Array(18).fill(0).map(() => `
+      <div class="skeleton-card" style="width: 100%;">
+        <div class="skeleton-thumb" style="height: 250px;"></div>
+        <div class="skeleton-info">
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line short"></div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Scroll to top of grid
+  window.scrollTo({ top: 0, behavior: "instant" });
+
+  // Load first large batch (3 pages = 54+ movies)
+  await loadNextViewAllBatch(3);
 }
 
 function sortViewAllGrid(sortBy) {
-  let list = currentViewAllItems.slice();
-  if (activeViewAllFilter === "movie") {
-    list = list.filter(i => i.type !== "tv");
-  } else if (activeViewAllFilter === "tv") {
-    list = list.filter(i => i.type === "tv");
-  }
-
-  if (sortBy === "rating") {
-    list.sort((a, b) => (parseFloat(b.rating) || 0) - (parseFloat(a.rating) || 0));
-  } else if (sortBy === "year") {
-    list.sort((a, b) => (parseInt(b.year) || 0) - (parseInt(a.year) || 0));
-  } else if (sortBy === "title") {
-    list.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
-  }
-
+  viewAllSortBy = sortBy;
+  const list = getSortedViewAllList(viewAllItems);
   renderViewAllGrid(list);
 }
 
-// ==========================================================================
-// ROW SLIDER ARROWS NAVIGATION (CIRCULAR BUTTONS)
-// ==========================================================================
+function getSortedViewAllList(items) {
+  let list = items.slice();
+  if (viewAllCurrentFilter === "movie") {
+    list = list.filter(i => i.type !== "tv");
+  } else if (viewAllCurrentFilter === "tv") {
+    list = list.filter(i => i.type === "tv");
+  }
+
+  if (viewAllSortBy === "rating") {
+    list.sort((a, b) => (parseFloat(b.rating) || 0) - (parseFloat(a.rating) || 0));
+  } else if (viewAllSortBy === "year") {
+    list.sort((a, b) => (parseInt(b.year) || 0) - (parseInt(a.year) || 0));
+  } else if (viewAllSortBy === "title") {
+    list.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+  }
+  return list;
+}
+
+window.openViewAllCategory = openViewAllCategory;
+window.filterViewAllType = filterViewAllType;
+window.closeViewAllPage = closeViewAllPage;
+window.sortViewAllGrid = sortViewAllGrid;
 
 function slideRow(scrollerId, direction) {
   const el = document.getElementById(scrollerId);
@@ -1010,19 +1376,27 @@ function createStandardCard(item, showProgress = false, defaultPlatformClass = "
   const pLabel = item.platformLabel || defaultPlatformLabel || (item.type === "tv" ? "TV" : "MOVIE");
   
   // Prefer vertical poster image first (like on FrameXTV)
-  const thumb = item.poster || item.image || item.backdrop || "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=640&q=80";
+  const thumb = item.poster || item.image || item.backdrop || "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=640&q=80";
   const ratingVal = item.rating && item.rating !== "N/A" ? String(item.rating) : "7.5";
   const yearVal = item.year || (item.release_date ? item.release_date.substring(0, 4) : "2026");
   const typeVal = item.type === "tv" ? "TV" : "Film";
 
+  const inList = watchlist.has(item.id);
+  const progressPct = item._pct || 0;
+
   card.innerHTML = `
     <div class="card-thumb-wrapper">
-      <img class="card-thumb" src="${thumb}" alt="${item.title}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=640&q=80'">
+      <img class="card-thumb" src="${thumb}" alt="${item.title}" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=640&q=80'">
       <div class="card-prime-badge ${pClass}">${pLabel}</div>
       <div class="card-rating-badge">★ ${ratingVal}</div>
-      ${showProgress ? `
+      <button class="card-watchlist-btn ${inList ? 'in-list' : ''}" data-id="${item.id}"
+        title="${inList ? 'Remove from My List' : 'Add to My List'}"
+        onclick="event.stopPropagation(); toggleWatchlist(window._cardItemMap && window._cardItemMap['${item.id}'] || {id:'${item.id}',title:'${item.title}'}, this)">
+        ${inList ? '❤️' : '♡'}
+      </button>
+      ${showProgress && progressPct > 0 ? `
         <div class="card-progress-bar">
-          <div class="card-progress-fill" style="width: ${item.progress || 50}%"></div>
+          <div class="card-progress-fill" style="width: ${progressPct}%"></div>
         </div>
       ` : ''}
     </div>
@@ -1035,6 +1409,9 @@ function createStandardCard(item, showProgress = false, defaultPlatformClass = "
       </div>
     </div>
   `;
+  // Store item ref for watchlist toggle
+  if (!window._cardItemMap) window._cardItemMap = {};
+  window._cardItemMap[item.id] = item;
   return card;
 }
 
@@ -1298,7 +1675,7 @@ async function loadSeasonEpisodes(item, seasonNumber, expectedEpisodeCount = 8) 
       const epAirDate = ep.air_date ? ep.air_date : '';
       const epRating = ep.vote_average ? Number(ep.vote_average).toFixed(1) : '';
       const epDesc = ep.overview || `Now streaming ${item.title} Season ${seasonNumber} Episode ${epNum} in 4K Ultra HD.`;
-      const epThumb = ep.still || ep.still_path || item.backdrop || item.poster || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=400&q=80';
+      const epThumb = ep.still || ep.still_path || item.backdrop || item.poster || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=400&q=80';
 
       const card = document.createElement("div");
       card.className = "ep-card";
@@ -1397,15 +1774,32 @@ function switchModalTab(tabId) {
   });
 }
 
-function toggleWatchlist(item) {
+function toggleWatchlist(item, btnEl) {
   if (!item) return;
   if (watchlist.has(item.id)) {
     watchlist.delete(item.id);
-    alert(`Removed "${item.title}" from your Watchlist`);
+    _saveWatchlist();
+    showToast('🗑️', `Removed "${item.title}" from My List`, 'warning');
   } else {
     watchlist.add(item.id);
-    alert(`Added "${item.title}" to your Prime Watchlist`);
+    _saveWatchlist();
+    showToast('❤️', `Added "${item.title}" to My List`, 'success');
+    if (btnEl) {
+      btnEl.classList.add('pop');
+      setTimeout(() => btnEl.classList.remove('pop'), 400);
+    }
   }
+  // Update all heart buttons for this item across the page
+  document.querySelectorAll(`.card-watchlist-btn[data-id="${item.id}"]`).forEach(b => {
+    b.classList.toggle('in-list', watchlist.has(item.id));
+    b.title = watchlist.has(item.id) ? 'Remove from My List' : 'Add to My List';
+  });
+  // Update modal watchlist button if open
+  const modalBtn = document.getElementById('modalWatchlistBtn');
+  if (modalBtn && activeModalItem?.id === item.id) {
+    modalBtn.innerHTML = watchlist.has(item.id) ? '<span>❤️</span>' : '<span>+</span>';
+  }
+  refreshMyListRow();
 }
 
 // ==========================================================================
@@ -1415,6 +1809,8 @@ function toggleWatchlist(item) {
 function openPlayer(item, episode = null) {
   currentPlayingItem = item;
   currentPlayingEpisode = episode || (item.episodes ? item.episodes[0] : null);
+
+  activeServerIndex = 0;
 
   const playerView = document.getElementById("playerView");
   const nameLabel = document.getElementById("playerMovieName");
@@ -1430,8 +1826,9 @@ function openPlayer(item, episode = null) {
   }
 
   loadStreamUrl();
-  playerView.classList.add("active");
+  playerView.classList.add('active');
   showPlayerHud();
+  startFailoverTimer();
 }
 
 function loadStreamUrl() {
@@ -1442,23 +1839,36 @@ function loadStreamUrl() {
   const s = currentPlayingEpisode?.s || 1;
   const e = currentPlayingEpisode?.ep || 1;
 
-  const server = SERVERS[activeServerIndex];
+  const server = SERVERS[activeServerIndex] || SERVERS[0];
   const streamUrl = server.buildUrl(item.type, item.id, s, e);
 
-  console.log(`[Prime Stream Engine] Loading ${item.title} from Server: ${server.name} -> ${streamUrl}`);
+  console.log(`[Prime Stream] ${item.title} → ${server.name}`);
   iframe.src = streamUrl;
+
+  // Keep dropdown in sync
+  const sel = document.getElementById("serverSelect");
+  if (sel) sel.selectedIndex = activeServerIndex;
 }
 
 function switchServer(index) {
   activeServerIndex = index;
   loadStreamUrl();
+  stopFailoverTimer();
+  startFailoverTimer();
+  const badge = document.getElementById('failoverBadge');
+  if (badge) badge.classList.remove('visible');
 }
 
 function closePlayer() {
-  const playerView = document.getElementById("playerView");
-  const iframe = document.getElementById("theatreIframe");
-  iframe.src = "about:blank";
-  playerView.classList.remove("active");
+  stopFailoverTimer();
+  const playerView = document.getElementById('playerView');
+  const iframe = document.getElementById('theatreIframe');
+  // Save ~30% placeholder progress when closing (real tracking would need iframe postMessage)
+  if (currentPlayingItem) {
+    saveWatchProgress(currentPlayingItem, currentPlayingEpisode, 35);
+  }
+  iframe.src = 'about:blank';
+  playerView.classList.remove('active');
   currentPlayingItem = null;
   currentPlayingEpisode = null;
 }
@@ -1493,7 +1903,186 @@ function togglePlayerFullscreen() {
 // SEARCH & CATEGORY FILTERING
 // ==========================================================================
 
+// ==========================================================================
+// HOME ENDLESS DISCOVER CATALOG (CONTINUOUS INFINITE DROP SCROLLER)
+// ==========================================================================
+
+let homeEndlessFilter = "all";
+let homeEndlessPage = 1;
+let homeEndlessIsLoading = false;
+let homeEndlessHasMore = true;
+let homeEndlessSeenIds = new Set();
+let isHomeInfiniteScrollAttached = false;
+
+function getHomeEndlessEndpoint(filter, page) {
+  if (filter === "movie") return `/api/movies?page=${page}`;
+  if (filter === "tv")    return `/api/tv?page=${page}`;
+  if (filter === "anime") return `/api/anime?page=${page}`;
+  return `/api/discover?page=${page}`;
+}
+
+let homeEndlessObserver = null;
+
+async function initHomeEndlessCatalog(filter = "all", reset = false) {
+  homeEndlessFilter = filter;
+  if (reset) {
+    homeEndlessPage = 1;
+    homeEndlessHasMore = true;
+    homeEndlessIsLoading = false;
+    homeEndlessSeenIds = new Set();
+    const grid = document.getElementById("homeEndlessGrid");
+    if (grid) grid.innerHTML = "";
+  }
+
+  setupHomeInfiniteScroll();
+  await loadNextHomeEndlessBatch(2);
+}
+
+async function loadNextHomeEndlessBatch(batchCount = 2) {
+  if (homeEndlessIsLoading || !homeEndlessHasMore) return;
+  homeEndlessIsLoading = true;
+
+  const loader = document.getElementById("homeEndlessLoader");
+  const loadMoreBtn = document.getElementById("homeLoadMoreBtn");
+  if (loader) loader.style.display = "flex";
+  if (loadMoreBtn) {
+    loadMoreBtn.disabled = true;
+    loadMoreBtn.innerText = "Loading more titles from catalog…";
+  }
+
+  const startPage = homeEndlessPage;
+  const pagePromises = [];
+  for (let i = 0; i < batchCount; i++) {
+    const pageNum = startPage + i;
+    const url = getHomeEndlessEndpoint(homeEndlessFilter, pageNum);
+    pagePromises.push(
+      fetchApiJson(url).then(data => ({ pageNum, data })).catch(err => {
+        console.warn(`[HomeEndless] Page ${pageNum} error:`, err);
+        return { pageNum, data: null };
+      })
+    );
+  }
+
+  try {
+    const settled = await Promise.all(pagePromises);
+    const grid = document.getElementById("homeEndlessGrid");
+    const countEl = document.getElementById("endlessDiscoverCount");
+
+    for (const res of settled) {
+      if (!res.data) continue;
+      const results = extractRailResults(res.data);
+      if (results && results.length > 0) {
+        results.forEach(raw => {
+          const item = formatSearchResult(raw, raw.type === "tv" ? "badge-netflix" : "badge-prime", raw.type === "tv" ? "TV" : "MOVIE");
+          if (item && item.id && !homeEndlessSeenIds.has(item.id)) {
+            homeEndlessSeenIds.add(item.id);
+            if (grid) grid.appendChild(createStandardCard(item));
+          }
+        });
+      }
+
+      if (res.data.totalPages && res.pageNum >= res.data.totalPages) {
+        homeEndlessHasMore = false;
+      }
+    }
+
+    homeEndlessPage += batchCount;
+
+    let catalogLabel = "20,000+ Available";
+    if (homeEndlessFilter === "anime") catalogLabel = "5,000+ Available";
+    else if (homeEndlessFilter === "all") catalogLabel = "50,000+ Available";
+
+    if (countEl) countEl.innerText = `${homeEndlessSeenIds.size.toLocaleString()}+`;
+
+    if (loadMoreBtn) {
+      loadMoreBtn.disabled = false;
+      if (homeEndlessHasMore) {
+        loadMoreBtn.innerText = `Load More Titles (${catalogLabel}) ▾`;
+      } else {
+        loadMoreBtn.innerText = `All ${homeEndlessSeenIds.size.toLocaleString()} Titles Loaded`;
+      }
+    }
+  } catch (err) {
+    console.warn("[HomeEndless] Batch fetch error:", err);
+  } finally {
+    homeEndlessIsLoading = false;
+    if (loader) loader.style.display = "none";
+    if (loadMoreBtn && loadMoreBtn.disabled) loadMoreBtn.disabled = false;
+  }
+}
+window.loadNextHomeEndlessBatch = loadNextHomeEndlessBatch;
+
+async function loadNextHomeEndlessPage() {
+  return loadNextHomeEndlessBatch(2);
+}
+
+function setupHomeInfiniteScroll() {
+  const loader = document.getElementById("homeEndlessLoader");
+  const loadMoreBtn = document.getElementById("homeLoadMoreBtn");
+
+  if (!homeEndlessObserver && "IntersectionObserver" in window) {
+    homeEndlessObserver = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          const viewAllPage = document.getElementById("viewAllPage");
+          if ((!viewAllPage || viewAllPage.style.display === "none") && !homeEndlessIsLoading && homeEndlessHasMore) {
+            loadNextHomeEndlessBatch(2);
+          }
+        }
+      }
+    }, {
+      root: null,
+      rootMargin: "900px 0px",
+      threshold: 0
+    });
+  }
+
+  if (homeEndlessObserver) {
+    if (loader) homeEndlessObserver.observe(loader);
+    if (loadMoreBtn) homeEndlessObserver.observe(loadMoreBtn);
+  }
+
+  if (isHomeInfiniteScrollAttached) return;
+  isHomeInfiniteScrollAttached = true;
+
+  window.addEventListener("scroll", () => {
+    // Only trigger if Home screen is visible
+    const viewAllPage = document.getElementById("viewAllPage");
+    if (viewAllPage && viewAllPage.style.display !== "none") return;
+
+    const scrollBottom = window.innerHeight + window.scrollY;
+    const documentHeight = document.documentElement.scrollHeight;
+
+    // Trigger next page when 900px from bottom of the page
+    if (scrollBottom >= documentHeight - 900) {
+      if (!homeEndlessIsLoading && homeEndlessHasMore) {
+        loadNextHomeEndlessBatch(2);
+      }
+    }
+  }, { passive: true });
+}
+
 function switchCategory(cat) {
+  // If user is currently on the fullpage All Shows & Movies page:
+  const viewAllPage = document.getElementById("viewAllPage");
+  if (viewAllPage && viewAllPage.style.display !== "none") {
+    if (cat === "movie") {
+      filterViewAllType("movie");
+      return;
+    } else if (cat === "tv") {
+      filterViewAllType("tv");
+      return;
+    } else if (cat === "anime") {
+      filterViewAllType("anime");
+      return;
+    } else if (cat === "all") {
+      filterViewAllType("all");
+      return;
+    } else {
+      closeViewAllPage();
+    }
+  }
+
   // Sync top navigation bar
   document.querySelectorAll(".nav-item").forEach(item => {
     item.classList.toggle("active", item.dataset.cat === cat);
@@ -1519,11 +2108,19 @@ function switchCategory(cat) {
   const rowAction = document.getElementById("rowAction");
   const rowComedy = document.getElementById("rowComedy");
   const rowLive = document.getElementById("rowLive");
+  const rowEndless = document.getElementById("rowEndlessDiscover");
+  const endlessTitle = document.getElementById("endlessSectionTitle");
+  const endlessSub = document.getElementById("endlessSectionSubtitle");
 
   const allRows = [rowTrending, rowPopularMovies, rowPopularTV, rowNetflix, rowHotstar, rowOriginals, rowMax, rowAnime, rowNewReleases, rowAction, rowComedy, rowLive].filter(Boolean);
 
+  if (rowEndless) rowEndless.style.display = "flex";
+
   if (cat === "all") {
     allRows.forEach(r => r.style.display = "flex");
+    if (endlessTitle) endlessTitle.innerText = "Explore All Titles — Movies, Series & Anime";
+    if (endlessSub) endlessSub.innerText = "Continuous streaming catalog — scroll down to explore endless blockbusters and episodes";
+    initHomeEndlessCatalog("all", true);
     renderBillboard(currentHeroItem || CATALOG[0]);
   } else if (cat === "movie") {
     allRows.forEach(r => r.style.display = "none");
@@ -1532,6 +2129,9 @@ function switchCategory(cat) {
     if (rowNewReleases) rowNewReleases.style.display = "flex";
     if (rowAction) rowAction.style.display = "flex";
     if (rowComedy) rowComedy.style.display = "flex";
+    if (endlessTitle) endlessTitle.innerText = "All Movies — Blockbusters & Feature Films (20,000+)";
+    if (endlessSub) endlessSub.innerText = "Scroll down to browse the complete cinematic catalog";
+    initHomeEndlessCatalog("movie", true);
     if (CATALOG[3]) renderBillboard(CATALOG[3]); // Dune 2
   } else if (cat === "tv") {
     allRows.forEach(r => r.style.display = "none");
@@ -1541,13 +2141,27 @@ function switchCategory(cat) {
     if (rowOriginals) rowOriginals.style.display = "flex";
     if (rowMax) rowMax.style.display = "flex";
     if (rowAnime) rowAnime.style.display = "flex";
+    if (endlessTitle) endlessTitle.innerText = "All TV Series — Binge-Worthy Shows & Seasons (20,000+)";
+    if (endlessSub) endlessSub.innerText = "Scroll down to explore all television series and seasons";
+    initHomeEndlessCatalog("tv", true);
     if (CATALOG[0]) renderBillboard(CATALOG[0]); // Fallout
+  } else if (cat === "anime") {
+    allRows.forEach(r => r.style.display = "none");
+    if (rowAnime) {
+      rowAnime.style.display = "flex";
+      rowAnime.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    if (endlessTitle) endlessTitle.innerText = "All Anime — Top Series, Movies & OVAs";
+    if (endlessSub) endlessSub.innerText = "Continuous stream of Japanese animation, shonen, and simulcasts";
+    initHomeEndlessCatalog("anime", true);
   } else if (cat === "netflix") {
     allRows.forEach(r => r.style.display = "none");
     if (rowNetflix) {
       rowNetflix.style.display = "flex";
       rowNetflix.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
+    if (endlessTitle) endlessTitle.innerText = "More Trending Content";
+    initHomeEndlessCatalog("all", false);
     if (PLATFORM_SHOWS.netflix[0]) renderBillboard(PLATFORM_SHOWS.netflix[0]);
   } else if (cat === "hotstar") {
     allRows.forEach(r => r.style.display = "none");
@@ -1555,6 +2169,8 @@ function switchCategory(cat) {
       rowHotstar.style.display = "flex";
       rowHotstar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
+    if (endlessTitle) endlessTitle.innerText = "More Trending Content";
+    initHomeEndlessCatalog("all", false);
     if (PLATFORM_SHOWS.hotstar[0]) renderBillboard(PLATFORM_SHOWS.hotstar[0]);
   } else if (cat === "prime") {
     allRows.forEach(r => r.style.display = "none");
@@ -1562,6 +2178,8 @@ function switchCategory(cat) {
       rowOriginals.style.display = "flex";
       rowOriginals.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
+    if (endlessTitle) endlessTitle.innerText = "More Trending Content";
+    initHomeEndlessCatalog("all", false);
     renderBillboard(CATALOG[0]);
   } else if (cat === "max") {
     allRows.forEach(r => r.style.display = "none");
@@ -1569,13 +2187,22 @@ function switchCategory(cat) {
       rowMax.style.display = "flex";
       rowMax.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
+    if (endlessTitle) endlessTitle.innerText = "More Trending Content";
+    initHomeEndlessCatalog("all", false);
     if (PLATFORM_SHOWS.max[0]) renderBillboard(PLATFORM_SHOWS.max[0]);
-  } else if (cat === "anime") {
+  } else if (cat === "mylist") {
     allRows.forEach(r => r.style.display = "none");
-    if (rowAnime) {
-      rowAnime.style.display = "flex";
-      rowAnime.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (rowEndless) rowEndless.style.display = "none";
+    const rowMyList = document.getElementById("rowMyList");
+    if (rowMyList) {
+      rowMyList.style.display = "flex";
+      rowMyList.classList.add("has-items");
+      refreshMyListRow();
+      rowMyList.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+    const myItems = getAllKnownItems().filter(i => watchlist.has(i.id));
+    if (myItems[0]) renderBillboard(myItems[0]);
+    else showToast('❤️', 'Your Watchlist is empty. Tap ♡ on any title to add!', 'warning');
   }
 }
 
@@ -1775,10 +2402,10 @@ function createDropdownItemElement(item, idx) {
     }
   };
 
-  const thumbImg = item.poster || item.backdrop || "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=200&q=80";
+  const thumbImg = item.poster || item.backdrop || "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=200&q=80";
 
   row.innerHTML = `
-    <img class="dropdown-thumb" src="${thumbImg}" alt="${item.title}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=200&q=80'">
+    <img class="dropdown-thumb" src="${thumbImg}" alt="${item.title}" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=200&q=80'">
     <div class="dropdown-meta">
       <div class="dropdown-title">${item.title}</div>
       <div class="dropdown-sub">
@@ -1831,7 +2458,7 @@ function renderGridResults(items, q) {
 
       card.innerHTML = `
         <div class="card-thumb-wrapper">
-          <img class="card-thumb" src="${item.backdrop || item.poster}" alt="${item.title}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=640&q=80'">
+          <img class="card-thumb" src="${item.backdrop || item.poster || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=640&q=80'}" alt="${item.title}" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=640&q=80'">
           <div class="card-prime-badge ${item.platformClass || 'badge-prime'}">${item.platformLabel || 'PRIME'}</div>
           <div class="card-quality-badge">${item.quality}</div>
         </div>
@@ -1853,7 +2480,7 @@ function formatSearchResult(d, defaultPlatformClass = "badge-prime", defaultPlat
   const isTv = d.type === "tv";
   const validBackdrop = d.backdrop && !d.backdrop.includes("placeholder") ? d.backdrop : null;
   const validPoster = d.poster && !d.poster.includes("placeholder") ? d.poster : (d.image && !d.image.includes("placeholder") ? d.image : null);
-  const fallbackImg = "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=1280&q=80";
+  const fallbackImg = "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1280&q=80";
 
   return {
     id: String(d.id),
@@ -1957,3 +2584,376 @@ function setupTVNavigation() {
     }
   });
 }
+
+
+// ==========================================================================
+// TOAST NOTIFICATION SYSTEM
+// ==========================================================================
+
+let _toastTimer = null;
+function showToast(icon, msg, type = '') {
+  const toast = document.getElementById('primeToast');
+  const iconEl = document.getElementById('primeToastIcon');
+  const msgEl  = document.getElementById('primeToastMsg');
+  if (!toast) return;
+  if (iconEl) iconEl.textContent = icon;
+  if (msgEl)  msgEl.textContent  = msg;
+  toast.className = 'prime-toast' + (type ? ' toast-' + type : '');
+  // Force reflow to restart animation
+  toast.offsetHeight;
+  toast.classList.add('visible');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => toast.classList.remove('visible'), 3000);
+}
+
+// ==========================================================================
+// CONTINUE WATCHING ROW
+// ==========================================================================
+
+function initContinueWatchingRow() {
+  refreshContinueRow();
+}
+
+function refreshContinueRow() {
+  const items = _loadContinueItems();
+  const row   = document.getElementById('rowContinueWatching');
+  const scroller = document.getElementById('scrollerContinue');
+  if (!row || !scroller) return;
+
+  if (!items || items.length === 0) {
+    row.classList.remove('has-items');
+    return;
+  }
+  row.classList.add('has-items');
+  scroller.innerHTML = '';
+
+  items.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'continue-card';
+    const thumb = item.backdrop || item.poster || item.image || '';
+    const pct   = item._pct || 0;
+    const epLabel = item._ep
+      ? `S${item._ep.s} E${item._ep.ep}${item._ep.title ? ' · ' + item._ep.title : ''}`
+      : (item.year || '');
+
+    card.innerHTML = `
+      <div class="continue-thumb-wrap">
+        <img src="${thumb}" alt="${item.title}" loading="lazy" onerror="this.style.display='none'">
+        <div class="continue-play-overlay"><span>▶</span></div>
+        <div class="continue-progress-bar">
+          <div class="continue-progress-fill" style="width:${pct}%"></div>
+        </div>
+        <button class="continue-remove-btn" data-remove-id="${item.id}" title="Remove from Continue Watching">✕</button>
+      </div>
+      <div class="continue-info">
+        <div class="continue-title">${item.title}</div>
+        <div class="continue-sub">${epLabel} · ${pct}% watched</div>
+      </div>
+    `;
+
+    card.onclick = (ev) => {
+      if (ev.target.closest('.continue-remove-btn')) return;
+      openPlayer(item, item._ep || null);
+    };
+    card.querySelector('.continue-remove-btn').addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      removeContinueItem(item.id);
+    });
+
+    scroller.appendChild(card);
+  });
+  initSliderArrows();
+}
+
+function removeContinueItem(id) {
+  const items = _loadContinueItems().filter(i => i.id !== id);
+  _saveContinueItems(items);
+  refreshContinueRow();
+}
+
+function clearContinueWatching() {
+  _saveContinueItems([]);
+  refreshContinueRow();
+  showToast('🗑️', 'Continue Watching cleared', 'warning');
+}
+
+// ==========================================================================
+// MY WATCHLIST ROW
+// ==========================================================================
+
+function initMyListRow() {
+  refreshMyListRow();
+}
+
+function refreshMyListRow() {
+  const row      = document.getElementById('rowMyList');
+  const scroller = document.getElementById('scrollerMyList');
+  if (!row || !scroller) return;
+
+  // Collect all known items that are in watchlist
+  const allItems = getAllKnownItems();
+  const listed = allItems.filter(item => watchlist.has(item.id));
+
+  const myListNavBtn = document.getElementById('myListNavBtn');
+  if (myListNavBtn) {
+    myListNavBtn.textContent = listed.length > 0 ? `❤️ My List (${listed.length})` : '❤️ My List';
+  }
+
+  if (listed.length === 0) {
+    row.classList.remove('has-items');
+    return;
+  }
+  row.classList.add('has-items');
+  renderRail('scrollerMyList', listed);
+}
+
+function getAllKnownItems() {
+  const all = [];
+  const seen = new Set();
+  const add = (arr) => arr.forEach(item => { if (item && item.id && !seen.has(item.id)) { seen.add(item.id); all.push(item); } });
+  add(CATALOG);
+  Object.values(PLATFORM_SHOWS).forEach(arr => Array.isArray(arr) && add(arr));
+  Object.values(CATEGORY_ITEMS).forEach(arr => Array.isArray(arr) && add(arr));
+  return all;
+}
+
+// switchCategory override for 'mylist'
+const _origSwitchCategory = typeof switchCategory === 'function' ? switchCategory : null;
+
+// ==========================================================================
+// SURPRISE ME — RANDOM TITLE PICKER
+// ==========================================================================
+
+function surpriseMe() {
+  const all = getAllKnownItems();
+  if (!all.length) return;
+  const item = all[Math.floor(Math.random() * all.length)];
+  showToast('🎲', `Surprising you with: ${item.title}!`, 'success');
+  setTimeout(() => openDetailsModal(item), 600);
+}
+
+// ==========================================================================
+// AUTO-ROTATING BILLBOARD HERO
+// ==========================================================================
+
+function initBillboardAutoRotate() {
+  // Collect hero candidates from popular_movies + trending (populated after render)
+  setTimeout(() => {
+    const candidates = [
+      ...(CATEGORY_ITEMS.popular_movies || []),
+      ...(CATEGORY_ITEMS.trending || []),
+      ...CATALOG.slice(0, 5)
+    ].filter(i => i && (i.backdrop || i.poster));
+
+    if (candidates.length < 2) return;
+    billboardItems = candidates.slice(0, 8); // max 8 items
+    billboardIndex = 0;
+
+    // Build dots
+    const dotsEl = document.getElementById('billboardDots');
+    if (dotsEl) {
+      dotsEl.innerHTML = billboardItems.map((_, i) => `
+        <button class="billboard-dot-progress ${i === 0 ? 'active' : ''}" onclick="jumpBillboard(${i})">
+          <div class="billboard-dot-progress-fill" id="billDotFill${i}"></div>
+        </button>
+      `).join('');
+    }
+
+    startBillboardRotation();
+  }, 800);
+}
+
+let _billDotInterval = null;
+function startBillboardRotation() {
+  clearInterval(billboardTimer);
+  clearInterval(_billDotInterval);
+  let elapsed = 0;
+  const TOTAL = 6000; // 6s per slide
+  const TICK  = 100;
+
+  _billDotInterval = setInterval(() => {
+    elapsed += TICK;
+    const fill = document.getElementById('billDotFill' + billboardIndex);
+    if (fill) fill.style.width = Math.min((elapsed / TOTAL) * 100, 100) + '%';
+    if (elapsed >= TOTAL) {
+      elapsed = 0;
+      advanceBillboard();
+    }
+  }, TICK);
+}
+
+function advanceBillboard() {
+  if (!billboardItems.length) return;
+  billboardIndex = (billboardIndex + 1) % billboardItems.length;
+  _applyBillboard(billboardIndex);
+}
+
+function jumpBillboard(idx) {
+  if (!billboardItems.length) return;
+  billboardIndex = idx;
+  _applyBillboard(idx);
+  startBillboardRotation(); // restart timer
+}
+
+function _applyBillboard(idx) {
+  const item = billboardItems[idx];
+  if (!item) return;
+
+  const billboard = document.getElementById('heroBillboard');
+  if (!billboard) return;
+
+  // Update dots
+  document.querySelectorAll('.billboard-dot-progress').forEach((d, i) => {
+    d.classList.toggle('active', i === idx);
+    const f = document.getElementById('billDotFill' + i);
+    if (f) f.style.width = i < idx ? '100%' : '0%';
+  });
+
+  // Crossfade
+  billboard.classList.add('fading');
+  setTimeout(() => {
+    renderBillboard(item);
+    billboard.classList.remove('fading');
+    billboard.classList.add('fading-in');
+    setTimeout(() => billboard.classList.remove('fading-in'), 600);
+  }, 400);
+}
+
+// ==========================================================================
+// AUTO-FAILOVER (Server auto-switch on iframe load timeout)
+// ==========================================================================
+
+function startFailoverTimer() {
+  stopFailoverTimer();
+  const iframe = document.getElementById('theatreIframe');
+  if (!iframe) return;
+
+  failoverTimer = setTimeout(() => {
+    if (!currentPlayingItem) return;
+    const nextIdx = (activeServerIndex + 1) % SERVERS.length;
+    if (nextIdx === 0 && activeServerIndex === SERVERS.length - 1) {
+      // All servers tried
+      showToast('⚠️', 'All servers tried. Try again in a moment.', 'error');
+      return;
+    }
+    showToast('⚡', `Server ${activeServerIndex + 1} slow — switching to Server ${nextIdx + 1}…`, 'warning');
+    const badge = document.getElementById('failoverBadge');
+    if (badge) { badge.textContent = `⚡ Auto-switched to Server ${nextIdx + 1}`; badge.classList.add('visible'); setTimeout(() => badge.classList.remove('visible'), 5000); }
+    switchServer(nextIdx);
+    const sel = document.getElementById('serverSelect');
+    if (sel) sel.selectedIndex = nextIdx;
+  }, 10000); // 10 seconds
+}
+
+function stopFailoverTimer() {
+  if (failoverTimer) { clearTimeout(failoverTimer); failoverTimer = null; }
+}
+
+// ==========================================================================
+// ENHANCED KEYBOARD SHORTCUTS (override existing setupTVNavigation)
+// ==========================================================================
+
+function setupKeyboardShortcuts() {
+  window.addEventListener('keydown', (e) => {
+    const activePlayer = document.getElementById('playerView')?.classList.contains('active');
+    const activeModal  = document.getElementById('detailsModal')?.classList.contains('active');
+    const isInput = document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA';
+    if (isInput) return;
+
+    if (activePlayer) {
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        togglePlayerFullscreen();
+      }
+      if (e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        // Focus iframe so space key reaches the embedded player
+        const iframe = document.getElementById('theatreIframe');
+        if (iframe) iframe.focus();
+      }
+      if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && currentPlayingItem?.type === 'tv') {
+        e.preventDefault();
+        _navigateEpisode(e.key === 'ArrowRight' ? 1 : -1);
+      }
+    }
+
+    if (e.key === 'm' || e.key === 'M') {
+      if (!activePlayer && !activeModal) {
+        e.preventDefault();
+        surpriseMe();
+      }
+    }
+  });
+}
+
+function _navigateEpisode(dir) {
+  if (!currentPlayingItem || !currentPlayingEpisode) return;
+  // Find current ep in episodes list
+  const item = currentPlayingItem;
+  const allEps = (item.episodes || []);
+  if (!allEps.length) return;
+  const curIdx = allEps.findIndex(ep => ep.s === currentPlayingEpisode.s && ep.ep === currentPlayingEpisode.ep);
+  const nextIdx = curIdx + dir;
+  if (nextIdx < 0 || nextIdx >= allEps.length) return;
+  const nextEp = allEps[nextIdx];
+  showToast('⏭️', `S${nextEp.s} E${nextEp.ep}: ${nextEp.title || ''}`, '');
+  openPlayer(item, nextEp);
+}
+
+// ==========================================================================
+// PWA INSTALL
+// ==========================================================================
+
+function setupPwaInstall() {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(err => {
+        console.warn('[PWA] ServiceWorker registration failed:', err);
+      });
+    });
+  }
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    pwaInstallEvent = e;
+    // Show PWA banner after 30s on site
+    setTimeout(() => {
+      const banner = document.getElementById('pwaInstallBanner');
+      if (banner) banner.classList.add('visible');
+    }, 30000);
+  });
+  window.addEventListener('appinstalled', () => {
+    dismissPwaBanner();
+    showToast('🎉', 'Prime Video installed successfully!', 'success');
+  });
+}
+
+function triggerPwaInstall() {
+  if (!pwaInstallEvent) {
+    showToast('ℹ️', 'Use your browser menu to install this app', '');
+    return;
+  }
+  pwaInstallEvent.prompt();
+  pwaInstallEvent.userChoice.then(result => {
+    if (result.outcome === 'accepted') showToast('🎉', 'Installing Prime Video…', 'success');
+    pwaInstallEvent = null;
+    dismissPwaBanner();
+  });
+}
+
+function dismissPwaBanner() {
+  const banner = document.getElementById('pwaInstallBanner');
+  if (banner) banner.classList.remove('visible');
+}
+
+// Add failoverBadge HTML to player HUD dynamically
+document.addEventListener('DOMContentLoaded', () => {
+  const hudTop = document.querySelector('.player-hud-top > div:last-child');
+  if (hudTop) {
+    const badge = document.createElement('div');
+    badge.className = 'failover-badge';
+    badge.id = 'failoverBadge';
+    badge.textContent = '⚡ Auto-switched server';
+    hudTop.prepend(badge);
+  }
+});
