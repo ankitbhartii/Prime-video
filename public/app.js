@@ -37,6 +37,7 @@ const SERVERS = [
   {
     id: "videasy",
     name: "🚀 Server 2 — Videasy 4K Ultra",
+    disableSandbox: true,
     buildUrl: (type, id, s, e) =>
       type === "tv"
         ? `https://player.videasy.to/tv/${id}/${s}/${e}`
@@ -2604,6 +2605,16 @@ function loadStreamUrl() {
   const streamUrl = server.buildUrl(item.type, item.id, s, e);
 
   console.log(`[Prime Stream] ${item.title} → ${server.name}`);
+
+  // Dynamic Ad-Blocking Sandbox:
+  // For FrameX Native and standard servers, enforcing this sandbox without 'allow-popups' or 'allow-top-navigation'
+  // strictly blocks all popup tabs, popunders, and unexpected ad redirects when clicking anywhere on screen.
+  if (server.disableSandbox) {
+    iframe.removeAttribute("sandbox");
+  } else {
+    iframe.setAttribute("sandbox", "allow-forms allow-scripts allow-same-origin allow-presentation allow-pointer-lock");
+  }
+
   iframe.src = streamUrl;
 
   // Keep dropdown in sync
@@ -3601,6 +3612,39 @@ function startFailoverTimer() {
 function stopFailoverTimer() {
   if (failoverTimer) { clearTimeout(failoverTimer); failoverTimer = null; }
 }
+
+// ==========================================================================
+// AD & POPUP INTERCEPTOR
+// Blocks malicious popunder / new-tab ad redirects when clicking player controls
+// ==========================================================================
+
+(function setupAdInterceptor() {
+  // Prevent any script from calling window.open to spawn ads while watching
+  const _origWindowOpen = window.open;
+  window.open = function(url, target, features) {
+    const isPlayerActive = document.getElementById('playerView')?.classList.contains('active');
+    if (isPlayerActive) {
+      console.warn('[Prime AdBlocker] Blocked unexpected popup while watching:', url);
+      return null;
+    }
+    return _origWindowOpen.apply(this, arguments);
+  };
+
+  // Intercept any click that tries to open external ad tabs while player is active
+  window.addEventListener('click', (e) => {
+    const isPlayerActive = document.getElementById('playerView')?.classList.contains('active');
+    if (!isPlayerActive) return;
+    const anchor = e.target.closest && e.target.closest('a');
+    if (anchor && anchor.target === '_blank') {
+      const isInternal = anchor.href && (anchor.href.includes(window.location.hostname) || anchor.href.startsWith('#') || anchor.href.startsWith('javascript:'));
+      if (!isInternal) {
+        console.warn('[Prime AdBlocker] Suppressed ad click redirect:', anchor.href);
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }
+  }, true);
+})();
 
 // ==========================================================================
 // ENHANCED KEYBOARD SHORTCUTS (override existing setupTVNavigation)

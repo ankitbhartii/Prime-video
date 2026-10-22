@@ -12,7 +12,7 @@ try {
 
 const SERVERS = [
   { id: "framex", name: "⚡ Server 1: FrameX Native", buildUrl: (type, id, s, e) => type === "tv" ? `https://framextv.cc/embed/tv/${id}/${s}/${e}?autoplay=1` : `https://framextv.cc/embed/movie/${id}?autoplay=1` },
-  { id: "videasy", name: "🚀 Server 2: Videasy 4K Ultra", buildUrl: (type, id, s, e) => type === "tv" ? `https://player.videasy.to/tv/${id}/${s}/${e}` : `https://player.videasy.to/movie/${id}` },
+  { id: "videasy", name: "🚀 Server 2: Videasy 4K Ultra", disableSandbox: true, buildUrl: (type, id, s, e) => type === "tv" ? `https://player.videasy.to/tv/${id}/${s}/${e}` : `https://player.videasy.to/movie/${id}` },
   { id: "vidlink", name: "🌐 Server 3: VidLink Pro", buildUrl: (type, id, s, e) => type === "tv" ? `https://vidlink.pro/tv/${id}/${s}/${e}` : `https://vidlink.pro/movie/${id}` },
   { id: "vidsrc", name: "🛡️ Server 4: Vidsrc VIP", buildUrl: (type, id, s, e) => type === "tv" ? `https://vidsrc.vip/embed/tv/${id}/${s}/${e}` : `https://vidsrc.vip/embed/movie/${id}` },
   { id: "embedsu", name: "⚡ Server 5: Embed.su Fast Stream", buildUrl: (type, id, s, e) => type === "tv" ? `https://embed.su/embed/tv/${id}/${s}/${e}` : `https://embed.su/embed/movie/${id}` },
@@ -2119,10 +2119,17 @@ function loadStreamUrl() {
   const s = currentPlayingEpisode?.s || 1;
   const e = currentPlayingEpisode?.ep || 1;
 
-  const server = SERVERS[activeServerIndex];
+  const server = SERVERS[activeServerIndex] || SERVERS[0];
   const streamUrl = server.buildUrl(item.type, item.id, s, e);
 
   console.log(`[Prime Stream Engine] Loading ${item.title} from Server: ${server.name} -> ${streamUrl}`);
+
+  if (server.disableSandbox) {
+    iframe.removeAttribute("sandbox");
+  } else {
+    iframe.setAttribute("sandbox", "allow-forms allow-scripts allow-same-origin allow-presentation allow-pointer-lock");
+  }
+
   iframe.src = streamUrl;
 }
 
