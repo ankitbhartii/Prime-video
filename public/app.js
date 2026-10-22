@@ -49,6 +49,38 @@ const SERVERS = [
       type === "tv"
         ? `https://vidlink.pro/tv/${id}/${s}/${e}`
         : `https://vidlink.pro/movie/${id}`
+  },
+  {
+    id: "vidsrc",
+    name: "🛡️ Server 4 — Vidsrc VIP",
+    buildUrl: (type, id, s, e) =>
+      type === "tv"
+        ? `https://vidsrc.vip/embed/tv/${id}/${s}/${e}`
+        : `https://vidsrc.vip/embed/movie/${id}`
+  },
+  {
+    id: "embedsu",
+    name: "⚡ Server 5 — Embed.su Fast Stream",
+    buildUrl: (type, id, s, e) =>
+      type === "tv"
+        ? `https://embed.su/embed/tv/${id}/${s}/${e}`
+        : `https://embed.su/embed/movie/${id}`
+  },
+  {
+    id: "autoembed",
+    name: "🎬 Server 6 — AutoEmbed Multi",
+    buildUrl: (type, id, s, e) =>
+      type === "tv"
+        ? `https://player.autoembed.cc/embed/tv/${id}/${s}/${e}`
+        : `https://player.autoembed.cc/embed/movie/${id}`
+  },
+  {
+    id: "2embed",
+    name: "☁️ Server 7 — 2Embed Cloud",
+    buildUrl: (type, id, s, e) =>
+      type === "tv"
+        ? `https://www.2embed.cc/embedtv/${id}&s=${s}&e=${e}`
+        : `https://www.2embed.cc/embed/${id}`
   }
 ];
 
@@ -2557,7 +2589,7 @@ function openPlayer(item, episode = null) {
   loadStreamUrl();
   playerView.classList.add('active');
   showPlayerHud();
-  startFailoverTimer();
+  stopFailoverTimer();
 }
 
 function loadStreamUrl() {
@@ -2583,7 +2615,6 @@ function switchServer(index) {
   activeServerIndex = index;
   loadStreamUrl();
   stopFailoverTimer();
-  startFailoverTimer();
   const badge = document.getElementById('failoverBadge');
   if (badge) badge.classList.remove('visible');
 }
@@ -3563,24 +3594,8 @@ function _applyBillboard(idx) {
 
 function startFailoverTimer() {
   stopFailoverTimer();
-  const iframe = document.getElementById('theatreIframe');
-  if (!iframe) return;
-
-  failoverTimer = setTimeout(() => {
-    if (!currentPlayingItem) return;
-    const nextIdx = (activeServerIndex + 1) % SERVERS.length;
-    if (nextIdx === 0 && activeServerIndex === SERVERS.length - 1) {
-      // All servers tried
-      showToast('⚠️', 'All servers tried. Try again in a moment.', 'error');
-      return;
-    }
-    showToast('⚡', `Server ${activeServerIndex + 1} slow — switching to Server ${nextIdx + 1}…`, 'warning');
-    const badge = document.getElementById('failoverBadge');
-    if (badge) { badge.textContent = `⚡ Auto-switched to Server ${nextIdx + 1}`; badge.classList.add('visible'); setTimeout(() => badge.classList.remove('visible'), 5000); }
-    switchServer(nextIdx);
-    const sel = document.getElementById('serverSelect');
-    if (sel) sel.selectedIndex = nextIdx;
-  }, 10000); // 10 seconds
+  // Disabled: never forcibly interrupt playback while user is watching.
+  // Server switching is left under manual user control via the Stream Server dropdown.
 }
 
 function stopFailoverTimer() {

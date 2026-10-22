@@ -11,9 +11,13 @@ try {
 } catch (e) {}
 
 const SERVERS = [
-  { id: "framex", name: "FrameXTV Cloud Player", buildUrl: (type, id, s, e) => type === "tv" ? `https://framextv.cc/embed/tv/${id}/${s}/${e}?autoplay=1` : `https://framextv.cc/embed/movie/${id}?autoplay=1` },
-  { id: "videasy", name: "Videasy 4K Ultra", buildUrl: (type, id, s, e) => type === "tv" ? `https://player.videasy.to/tv/${id}/${s}/${e}` : `https://player.videasy.to/movie/${id}` },
-  { id: "vidlink", name: "VidLink Multi-Audio", buildUrl: (type, id, s, e) => type === "tv" ? `https://vidlink.pro/tv/${id}/${s}/${e}` : `https://vidlink.pro/movie/${id}` }
+  { id: "framex", name: "⚡ Server 1: FrameX Native", buildUrl: (type, id, s, e) => type === "tv" ? `https://framextv.cc/embed/tv/${id}/${s}/${e}?autoplay=1` : `https://framextv.cc/embed/movie/${id}?autoplay=1` },
+  { id: "videasy", name: "🚀 Server 2: Videasy 4K Ultra", buildUrl: (type, id, s, e) => type === "tv" ? `https://player.videasy.to/tv/${id}/${s}/${e}` : `https://player.videasy.to/movie/${id}` },
+  { id: "vidlink", name: "🌐 Server 3: VidLink Pro", buildUrl: (type, id, s, e) => type === "tv" ? `https://vidlink.pro/tv/${id}/${s}/${e}` : `https://vidlink.pro/movie/${id}` },
+  { id: "vidsrc", name: "🛡️ Server 4: Vidsrc VIP", buildUrl: (type, id, s, e) => type === "tv" ? `https://vidsrc.vip/embed/tv/${id}/${s}/${e}` : `https://vidsrc.vip/embed/movie/${id}` },
+  { id: "embedsu", name: "⚡ Server 5: Embed.su Fast Stream", buildUrl: (type, id, s, e) => type === "tv" ? `https://embed.su/embed/tv/${id}/${s}/${e}` : `https://embed.su/embed/movie/${id}` },
+  { id: "autoembed", name: "🎬 Server 6: AutoEmbed Multi", buildUrl: (type, id, s, e) => type === "tv" ? `https://player.autoembed.cc/embed/tv/${id}/${s}/${e}` : `https://player.autoembed.cc/embed/movie/${id}` },
+  { id: "2embed", name: "☁️ Server 7: 2Embed Cloud", buildUrl: (type, id, s, e) => type === "tv" ? `https://www.2embed.cc/embedtv/${id}&s=${s}&e=${e}` : `https://www.2embed.cc/embed/${id}` }
 ];
 
 let activeServerIndex = 0;
