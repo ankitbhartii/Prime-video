@@ -20,8 +20,38 @@ const MIME_TYPES = {
 };
 
 const apiCache = new Map();
+const FALLBACK_RAILS = require('./api/fallback-data.js');
 
-const server = http.createServer((req, res) => {
+const BACKENDS = [
+  'https://api.framextv.tech',
+  'https://api.framextv.xyz',
+  'https://api.framextv.cc'
+];
+
+async function fetchFromUpstream(targetPath) {
+  for (const base of BACKENDS) {
+    try {
+      const url = `${base}${targetPath}`;
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Referer': 'https://framextv.cc/',
+          'Accept': 'application/json, text/plain, */*'
+        }
+      });
+      if (res.ok) {
+        const text = await res.text();
+        const json = JSON.parse(text);
+        if (json && (json.success || json.rails || json.results || Array.isArray(json))) {
+          return { ok: true, body: text };
+        }
+      }
+    } catch (e) {}
+  }
+  return { ok: false };
+}
+
+const server = http.createServer(async (req, res) => {
   // Handle all /api/ proxies (/api/search, /api/home, /api/tv, /api/trending, etc.)
   if (req.url.startsWith('/api/')) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -41,7 +71,7 @@ const server = http.createServer((req, res) => {
       return;
     }
 
-    let targetUrl = `https://api.framextv.tech${req.url}`;
+    let targetPath = req.url;
     if (req.url.startsWith('/api/anime')) {
       const urlObj = new URL(req.url, 'http://localhost');
       const page = parseInt(urlObj.searchParams.get('page') || '1');
@@ -51,56 +81,72 @@ const server = http.createServer((req, res) => {
         'chainsaw man', 'death note', 'spy x family', 'my hero academia', 'tokyo ghoul'
       ];
       const query = TOP_ANIME[(page - 1) % TOP_ANIME.length];
-      targetUrl = `https://api.framextv.tech/api/search?q=${encodeURIComponent(query)}`;
+      targetPath = `/api/search?q=${encodeURIComponent(query)}`;
     } else if (req.url.startsWith('/api/tv?')) {
       const urlObj = new URL(req.url, 'http://localhost');
       const id = urlObj.searchParams.get('id');
       const season = urlObj.searchParams.get('season');
       if (id) {
-        targetUrl = season 
-          ? `https://api.framextv.tech/api/tv/${id}/season/${season}`
-          : `https://api.framextv.tech/api/tv/${id}`;
+        targetPath = season 
+          ? `/api/tv/${id}/season/${season}`
+          : `/api/tv/${id}`;
       }
     }
 
-    const options = {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Referer': 'https://framextv.cc/',
-        'Accept': 'application/json, text/plain, */*'
-      }
-    };
-
-    https.get(targetUrl, options, (proxyRes) => {
-      let body = '';
-      proxyRes.on('data', chunk => body += chunk);
-      proxyRes.on('end', () => {
-        if (proxyRes.statusCode >= 200 && proxyRes.statusCode < 300) {
-          try {
-            JSON.parse(body);
-            apiCache.set(req.url, { time: Date.now(), body });
-            res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-            res.end(body);
-            return;
-          } catch (e) {}
-        }
-        if (cached) {
-          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-          res.end(cached.body);
-          return;
-        }
-        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify({ error: 'Upstream status ' + proxyRes.statusCode, episodes: [] }));
-      });
-    }).on('error', (err) => {
-      if (cached) {
-        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(cached.body);
-        return;
-      }
+    const upstream = await fetchFromUpstream(targetPath);
+    if (upstream.ok) {
+      apiCache.set(req.url, { time: Date.now(), body: upstream.body });
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({ error: err.message, episodes: [] }));
-    });
+      res.end(upstream.body);
+      return;
+    }
+
+    // Graceful verified fallbacks if all upstreams fail
+    if (cached) {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(cached.body);
+      return;
+    }
+
+    if (req.url.startsWith('/api/home')) {
+      const fallbackBody = JSON.stringify({
+        success: true,
+        timestamp: Math.floor(Date.now() / 1000),
+        rails: FALLBACK_RAILS
+      });
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(fallbackBody);
+      return;
+    }
+
+    if (req.url.startsWith('/api/movies') || req.url.startsWith('/api/discover')) {
+      const allMovies = (FALLBACK_RAILS.popular_movies || []).concat(FALLBACK_RAILS.trending_movies || []);
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({
+        success: true,
+        page: 1,
+        totalPages: 1000,
+        totalResults: 20000,
+        results: allMovies
+      }));
+      return;
+    }
+
+    if (req.url.startsWith('/api/search')) {
+      const urlObj = new URL(req.url, 'http://localhost');
+      const q = (urlObj.searchParams.get('q') || '').toLowerCase();
+      const allItems = Object.values(FALLBACK_RAILS).flat();
+      const matched = allItems.filter(item => item && item.title && item.title.toLowerCase().includes(q));
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({
+        success: true,
+        results: matched.length > 0 ? matched : allItems.slice(0, 10)
+      }));
+      return;
+    }
+
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ success: false, results: [] }));
     return;
   }
 
