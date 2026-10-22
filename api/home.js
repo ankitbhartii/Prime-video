@@ -11,11 +11,15 @@ module.exports = async (req, res) => {
 
   const targetUrl = 'https://api.framextv.tech/api/home';
 
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Referer': 'https://framextv.cc/',
+    'Accept': 'application/json, text/plain, */*'
+  };
+
   try {
     if (typeof fetch !== 'undefined') {
-      const response = await fetch(targetUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
-      });
+      const response = await fetch(targetUrl, { headers });
       if (!response.ok) {
         throw new Error(`Upstream returned ${response.status}`);
       }
@@ -26,7 +30,7 @@ module.exports = async (req, res) => {
     }
 
     // Node fallback with https
-    https.get(targetUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (proxyRes) => {
+    https.get(targetUrl, { headers }, (proxyRes) => {
       let body = '';
       proxyRes.on('data', chunk => body += chunk);
       proxyRes.on('end', () => {

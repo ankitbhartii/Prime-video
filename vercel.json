@@ -1,33 +1,10 @@
 {
   "version": 2,
+  "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/api/home",
-      "destination": "/api/home.js"
-    },
-    {
-      "source": "/api/search",
-      "destination": "/api/search.js"
-    },
-    {
-      "source": "/api/movies",
-      "destination": "/api/movies.js"
-    },
-    {
-      "source": "/api/discover",
-      "destination": "/api/discover.js"
-    },
-    {
-      "source": "/api/anime",
-      "destination": "/api/anime.js"
-    },
-    {
       "source": "/api/tv/(.*)",
-      "destination": "/api/tv.js?path=$1"
-    },
-    {
-      "source": "/api/tv",
-      "destination": "/api/tv.js"
+      "destination": "/api/tv?path=$1"
     }
   ]
 }
